@@ -66,22 +66,24 @@ export async function createUser(params: {
     user_metadata: {
       full_name: params.full_name,
       role: params.role,
-      team,
       approved: true,
     },
   });
 
   if (authError) throw new Error(authError.message);
+  if (!authData.user) throw new Error("Failed to create user");
 
-  if (authData.user) {
-    await admin
-      .from("profiles")
-      .update({ is_active: true, team })
-      .eq("auth_user_id", authData.user.id);
-  }
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .update({ is_active: true, team })
+    .eq("auth_user_id", authData.user.id)
+    .select()
+    .single();
+
+  if (profileError) throw new Error(profileError.message);
 
   revalidatePath("/users");
-  return authData.user;
+  return profile;
 }
 
 export async function approveUser(id: string) {

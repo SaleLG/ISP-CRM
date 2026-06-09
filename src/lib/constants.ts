@@ -4,10 +4,11 @@ export type Team = (typeof TEAMS)[number];
 export const ROLES = ["admin", "manager", "senior_sales", "recovery"] as const;
 export type Role = (typeof ROLES)[number];
 
-/** Team is derived from role — not edited separately. */
-export function teamFromRole(role: Role | string): Team {
+/** User team is only set for senior_sales and recovery; admin/manager have no team. */
+export function teamFromRole(role: Role | string): Team | null {
   if (role === "recovery") return "Recovery Team";
-  return "Senior Sales Team";
+  if (role === "senior_sales") return "Senior Sales Team";
+  return null;
 }
 
 export const WORKFLOW_STAGES = [

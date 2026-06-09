@@ -9,12 +9,14 @@ export async function getTeamMembers(team?: string) {
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, role, team")
+    .select("id, full_name, email, role")
     .eq("is_active", true)
     .order("full_name");
 
-  if (team) {
-    query = query.eq("team", team);
+  if (team === "Recovery Team") {
+    query = query.eq("role", "recovery");
+  } else if (team === "Senior Sales Team") {
+    query = query.eq("role", "senior_sales");
   }
 
   const { data, error } = await query;
@@ -29,7 +31,7 @@ export async function getSeniorAssistUsers() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, team")
+    .select("id, full_name, email, role")
     .eq("is_active", true)
     .in("role", ["senior_sales", "manager", "admin"])
     .order("full_name");

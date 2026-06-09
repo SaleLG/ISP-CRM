@@ -194,6 +194,19 @@ RETURNS TEXT AS $$
   SELECT role FROM profiles WHERE auth_user_id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+CREATE OR REPLACE FUNCTION team_from_role(p_role TEXT)
+RETURNS TEXT AS $$
+BEGIN
+  IF p_role = 'recovery' THEN
+    RETURN 'Recovery Team';
+  ELSIF p_role = 'senior_sales' THEN
+    RETURN 'Senior Sales Team';
+  ELSE
+    RETURN NULL;
+  END IF;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION get_my_team()
 RETURNS TEXT AS $$
   SELECT team FROM profiles WHERE auth_user_id = auth.uid() LIMIT 1;
@@ -267,14 +280,18 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
+  v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'senior_sales');
+
   INSERT INTO public.profiles (auth_user_id, email, full_name, role, team, is_active)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'senior_sales'),
-    COALESCE(NEW.raw_user_meta_data->>'team', 'Senior Sales Team'),
+    v_role,
+    team_from_role(v_role),
     CASE
       WHEN NEW.raw_user_meta_data->>'approved' = 'true' THEN true
       ELSE false
@@ -552,4 +569,5 @@ CREATE POLICY "Authenticated users can read isp columns"
 -- ============================================================
 
 UPDATE profiles SET team = 'Recovery Team' WHERE role = 'recovery' AND team IS DISTINCT FROM 'Recovery Team';
-UPDATE profiles SET team = 'Senior Sales Team' WHERE role IN ('admin', 'manager', 'senior_sales') AND team IS DISTINCT FROM 'Senior Sales Team';
+UPDATE profiles SET team = 'Senior Sales Team' WHERE role = 'senior_sales' AND team IS DISTINCT FROM 'Senior Sales Team';
+UPDATE profiles SET team = NULL WHERE role IN ('admin', 'manager') AND team IS NOT NULL;

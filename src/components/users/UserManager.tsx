@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -51,6 +51,10 @@ export default function UserManager({ users: initial }: { users: User[] }) {
   });
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setUsers(initial);
+  }, [initial]);
+
   const pendingUsers = users.filter((u) => !u.is_active);
   const activeUsers = users.filter((u) => u.is_active);
   const displayedUsers = tab === 0 ? pendingUsers : activeUsers;
@@ -86,7 +90,13 @@ export default function UserManager({ users: initial }: { users: User[] }) {
   const handleCreate = async () => {
     setLoading(true);
     try {
-      await createUser(form);
+      const created = await createUser(form);
+      setUsers((prev) =>
+        [...prev, created].sort((a, b) =>
+          (a.full_name ?? "").localeCompare(b.full_name ?? "")
+        )
+      );
+      setTab(1);
       setDialogOpen(false);
       setForm({
         email: "",
@@ -179,7 +189,7 @@ export default function UserManager({ users: initial }: { users: User[] }) {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {teamFromRole(user.role)}
+                      {user.team ?? teamFromRole(user.role) ?? "—"}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -261,7 +271,11 @@ export default function UserManager({ users: initial }: { users: User[] }) {
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             fullWidth
-            helperText={`Team: ${teamFromRole(form.role)} (set automatically from role)`}
+            helperText={
+              teamFromRole(form.role)
+                ? `Team: ${teamFromRole(form.role)} (set automatically from role)`
+                : "No team for this role"
+            }
           >
             {ROLES.map((r) => (
               <MenuItem key={r} value={r}>

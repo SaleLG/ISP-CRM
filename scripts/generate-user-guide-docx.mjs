@@ -106,7 +106,8 @@ const doc = new Document({
         para(
           "ISP CRM is a web-based customer recovery system. It helps your team:"
         ),
-        bullet("Import customer lists from ISP Excel/CSV files"),
+        bullet("Set up a separate CRM table for each ISP with custom columns"),
+        bullet("Import customer lists from ISP Excel/CSV files into the correct ISP table"),
         bullet("Track call attempts and workflow stages"),
         bullet("Hand off leads from Senior Sales to Recovery after 3 attempts"),
         bullet("Assign Recovery leads to specific agents"),
@@ -114,7 +115,7 @@ const doc = new Document({
         bullet("Flag ISP complaints and price approvals for management review"),
         bullet("View dashboards and reports on recovery progress"),
         para(
-          "All teams work from one master customer database. Records are never duplicated — team pages are filtered views of the same data."
+          "All teams work from one master customer database. Each ISP has its own column layout, but records are never duplicated — team pages are filtered views of the same data."
         ),
 
         heading("2. Getting Started", HeadingLevel.HEADING_2),
@@ -168,11 +169,11 @@ const doc = new Document({
           [
             ["Dashboard", "Everyone", "Overview stats and charts"],
             ["Import Customers", "Admin, Manager", "Upload ISP Excel/CSV files"],
-            ["Master CRM", "Admin, Manager", "Full customer list with all filters"],
+            ["Master CRM", "Admin, Manager", "Per-ISP customer tables with custom columns"],
             ["Senior Sales Team", "Admin, Manager, Senior Sales", "Leads for first 3 call attempts"],
             ["Recovery Team", "Admin, Manager, Recovery", "Recovery follow-up and install reschedules"],
             ["Alerts", "Admin, Manager", "ISP complaints and price approvals"],
-            ["ISPs", "Admin, Manager", "Manage ISP names used for imports"],
+            ["ISPs", "Admin, Manager", "Create ISPs, define CRM columns, open each ISP's table"],
             ["Users", "Admin only", "Approve and manage user accounts"],
             ["Profile", "Everyone", "Update name, avatar, password"],
           ]
@@ -187,55 +188,90 @@ const doc = new Document({
         bullet("Recent activity trends"),
         para("Use this page at the start of each day to see workload and results."),
 
-        heading("5. Importing Customers", HeadingLevel.HEADING_2),
+        heading("5. Setting Up an ISP (Required Before Import)", HeadingLevel.HEADING_2),
+        para(
+          "Before you can import customers or use Master CRM for an ISP, you must create the ISP and define its columns. Each ISP can have a different spreadsheet layout."
+        ),
+        para("Who: Admin or Manager"),
+        para("Where: ISPs page"),
+
+        heading("5.1 Create the ISP", HeadingLevel.HEADING_3),
+        numbered('Click "Add ISP"'),
+        numbered('Enter the ISP name (e.g. Comcast, Spectrum)'),
+        numbered("Save"),
+
+        heading("5.2 Define CRM Columns", HeadingLevel.HEADING_3),
+        numbered('Click "Columns" on the ISP row'),
+        numbered('Click "Add Column" for each field in that ISP\'s spreadsheet'),
+        numbered("Enter the column name exactly as it appears in the spreadsheet (e.g. Name, ACCT#, Install Date)"),
+        para("Column options:"),
+        bullet("Primary column — the main customer identifier shown in tables (usually Name). Always appears first."),
+        bullet("Use for duplicate matching on import — the field used to detect existing records (usually ACCT# or Phone). Always appears second."),
+        bullet("Other columns — any additional fields (Address, Product, Status, etc.)"),
+        para(
+          "Column order is automatic: Primary first, match-key second, then all other columns. You can reorder non-primary, non-match-key columns with the up/down arrows."
+        ),
+        numbered('When finished, click Close — or keep adding columns (the dialog stays open after each "Add Column")'),
+        para(
+          "Tip: You can also open an ISP's CRM table directly with the View CRM button on the ISPs page."
+        ),
+
+        heading("6. Importing Customers", HeadingLevel.HEADING_2),
         para("Who: Admin or Manager"),
         para("Where: Import Customers page"),
+        para(
+          "Import is blocked until the selected ISP has at least one column defined on the ISPs page."
+        ),
         numbered('Select the ISP (e.g. Comcast, Spectrum) from the dropdown'),
         numbered("Upload an Excel (.xlsx) or CSV file from the ISP"),
         numbered(
-          "Review column mapping — the system auto-maps common headers (Name, Number, ACCT#, Address, etc.)"
+          "Review column mapping — spreadsheet headers are auto-mapped to that ISP's CRM columns by name"
         ),
         numbered("Adjust any incorrect mappings manually"),
-        numbered("Click Preview to see the first 20 rows"),
+        numbered("Click Preview to see the first 20 rows mapped to your ISP columns"),
         numbered("Click Confirm Import to process the file"),
         para("After import, you see a summary:"),
         bullet("New records created"),
-        bullet("Existing records updated"),
-        bullet("Duplicates skipped"),
+        bullet("Existing records updated (matched by ISP + match-key column)"),
         bullet("Errors (if any)"),
-        para("Duplicate detection order:"),
-        numbered("Match by ISP + Account Number"),
-        numbered("If no match, try ISP + Phone"),
-        numbered("If no match, try ISP + Name + Address"),
+        para("Duplicate detection:"),
+        bullet("When importing, the system checks columns marked Use for duplicate matching on import"),
+        bullet("If a row matches an existing customer for the same ISP on any match-key field, the record is updated instead of creating a duplicate"),
+        bullet("Typical setup: mark ACCT# or Phone as the match key"),
         para(
           "New customers are assigned to Senior Sales Team with workflow stage New and 0 call attempts."
         ),
 
-        heading("6. Master CRM", HeadingLevel.HEADING_2),
+        heading("7. Master CRM", HeadingLevel.HEADING_2),
         para("Who: Admin and Manager"),
         para("Where: Master CRM page"),
-        para("This is the full customer database. Use it to:"),
-        bullet("Search by name, phone, account number, or address"),
-        bullet("Filter by ISP, team, workflow stage, or transfer status"),
-        bullet("Click any customer name to open their detail page"),
+        para(
+          "Master CRM shows one ISP at a time. Each ISP tab displays that ISP's custom columns plus standard workflow fields (team, stage, calls, etc.)."
+        ),
+        numbered("Select an ISP tab at the top of the table"),
+        numbered("If the ISP has no columns defined yet, the table is hidden — go to ISPs → Columns first"),
+        para("Use Master CRM to:"),
+        bullet("Search across that ISP's customer data"),
+        bullet("Filter by team, workflow stage, or transfer status"),
+        bullet("Click the primary column value to open the customer detail page"),
         bullet("Edit team and stage inline (when editable mode is on)"),
         para(
-          "Use Master CRM when you need to find any customer regardless of which team they are on."
+          "There is no combined All ISPs view — switch tabs to work with a different ISP's customers."
         ),
 
-        heading("7. Senior Sales Team Workflow", HeadingLevel.HEADING_2),
+        heading("8. Senior Sales Team Workflow", HeadingLevel.HEADING_2),
         para("Who: Senior Sales agents (and managers overseeing them)"),
         para("Where: Senior Sales Team page"),
         para(
           "This view shows customers assigned to Senior Sales Team. Your job is to make up to 3 contact attempts before handing off to Recovery."
         ),
 
-        heading("7.1 Finding a Lead", HeadingLevel.HEADING_3),
+        heading("8.1 Finding a Lead", HeadingLevel.HEADING_3),
         numbered("Open Senior Sales Team from the sidebar"),
         numbered("Use search or filters to find your lead"),
         numbered("Click the customer name to open Customer Detail"),
 
-        heading("7.2 Logging a Call", HeadingLevel.HEADING_3),
+        heading("8.2 Logging a Call", HeadingLevel.HEADING_3),
         numbered('Click "Log Call" in the Actions panel'),
         numbered("Select the call result (No Answer, Left Voicemail, Customer Answered, etc.)"),
         numbered("Add notes about what happened"),
@@ -248,7 +284,7 @@ const doc = new Document({
           'After 3 attempts with no success, sets transfer status to "Move to Recovery Needed"'
         ),
 
-        heading("7.3 Moving to Recovery", HeadingLevel.HEADING_3),
+        heading("8.3 Moving to Recovery", HeadingLevel.HEADING_3),
         para(
           'After 3 call attempts, a "Move to Recovery Team" button appears on the customer detail page.'
         ),
@@ -260,14 +296,14 @@ const doc = new Document({
         bullet("Disappears from Senior Sales view and appears in Recovery Team view"),
         bullet("Stays as the same record — not copied"),
 
-        heading("8. Recovery Team Workflow", HeadingLevel.HEADING_2),
+        heading("9. Recovery Team Workflow", HeadingLevel.HEADING_2),
         para("Who: Recovery agents and managers"),
         para("Where: Recovery Team page"),
         para(
           "Recovery handles customers who could not be reached or closed by Senior Sales. The primary goal is to reschedule install appointments for customers who did not complete their initial install."
         ),
 
-        heading("8.1 Viewing Your Leads", HeadingLevel.HEADING_3),
+        heading("9.1 Viewing Your Leads", HeadingLevel.HEADING_3),
         bullet(
           "Recovery agents only see leads assigned to them by a manager"
         ),
@@ -278,7 +314,7 @@ const doc = new Document({
           'Use the "Assigned To" filter: All agents, My leads, Unassigned, or a specific agent'
         ),
 
-        heading("8.2 Assigning Leads (Managers)", HeadingLevel.HEADING_3),
+        heading("9.2 Assigning Leads (Managers)", HeadingLevel.HEADING_3),
         para("Managers assign Recovery agents in two ways:"),
         numbered(
           "On the Recovery Team table — use the Assigned To dropdown in each row"
@@ -290,7 +326,7 @@ const doc = new Document({
           "Unassigned leads are visible to managers. Assign them before agents can work them."
         ),
 
-        heading("8.3 Logging Recovery Calls", HeadingLevel.HEADING_3),
+        heading("9.3 Logging Recovery Calls", HeadingLevel.HEADING_3),
         numbered("Open the customer from Recovery Team"),
         numbered('Click "Log Call"'),
         numbered(
@@ -312,7 +348,7 @@ const doc = new Document({
           "When 3-way is checked, select which senior assisted from the dropdown"
         ),
 
-        heading("8.4 3-Way Calls", HeadingLevel.HEADING_3),
+        heading("9.4 3-Way Calls", HeadingLevel.HEADING_3),
         para(
           "When a trainee Recovery agent adds a Senior Sales rep on a 3-way call to close a sale:"
         ),
@@ -324,18 +360,18 @@ const doc = new Document({
           "The call history shows a 3-way badge with the senior's name. This supports commission tracking."
         ),
 
-        heading("8.5 Price Approval & ISP Complaints", HeadingLevel.HEADING_3),
+        heading("9.5 Price Approval & ISP Complaints", HeadingLevel.HEADING_3),
         para("If the customer needs a price break or has an ISP issue:"),
         numbered('Log Call → select "Price Approval Needed" or "ISP Complaint"'),
         numbered("Add details in notes"),
         para("This creates an alert for management on the Alerts page."),
 
-        heading("9. Customer Detail Page", HeadingLevel.HEADING_2),
+        heading("10. Customer Detail Page", HeadingLevel.HEADING_2),
         para(
           "Every customer has a detail page with full information and actions. Open it by clicking a customer name from any table."
         ),
         para("Left side — information panels:"),
-        bullet("Customer Information (name, phone, address, ISP data from import)"),
+        bullet("Customer Information (ISP custom fields from import, e.g. name, phone, account, address)"),
         bullet("Workflow Status (team, assigned agent, stage, alerts, outcome)"),
         bullet("Call Log History (all past calls with agent, result, 3-way info)"),
         bullet("Notes (free-text notes from any team member)"),
@@ -349,7 +385,7 @@ const doc = new Document({
         bullet("Follow-up date"),
         bullet("Add Note"),
 
-        heading("10. Alerts Page", HeadingLevel.HEADING_2),
+        heading("11. Alerts Page", HeadingLevel.HEADING_2),
         para("Who: Admin and Manager"),
         para("Where: Alerts page"),
         para("Alerts appear when a call is logged with:"),
@@ -363,14 +399,20 @@ const doc = new Document({
         numbered("Notify the Recovery agent of the decision"),
         numbered("Agent calls the customer back to close or explain"),
 
-        heading("11. ISPs Page", HeadingLevel.HEADING_2),
+        heading("12. ISPs Page", HeadingLevel.HEADING_2),
         para("Who: Admin and Manager"),
-        para("Manage the list of ISPs used when importing customer files."),
-        numbered("Add new ISP names before importing their files"),
-        numbered("Edit or deactivate ISPs as needed"),
-        para("Each import must be linked to one ISP record."),
+        para(
+          "The ISPs page is where you set up each ISP's CRM table before importing or viewing customers."
+        ),
+        numbered("Add new ISP names"),
+        numbered('Click Columns to define that ISP\'s spreadsheet fields'),
+        numbered('Click View CRM to open that ISP\'s tab on Master CRM'),
+        numbered("Edit name or deactivate ISPs as needed"),
+        para(
+          "Each import and each Master CRM tab is linked to one ISP record. Different ISPs can have completely different column layouts."
+        ),
 
-        heading("12. Users Page (Admin Only)", HeadingLevel.HEADING_2),
+        heading("13. Users Page (Admin Only)", HeadingLevel.HEADING_2),
         para("Who: Admin"),
         para("Manage who can access the CRM:"),
         numbered("View all registered users"),
@@ -381,14 +423,14 @@ const doc = new Document({
         ),
         numbered("Deactivate users who should no longer access the system"),
 
-        heading("13. Profile Page", HeadingLevel.HEADING_2),
+        heading("14. Profile Page", HeadingLevel.HEADING_2),
         para("Everyone can update their own profile:"),
         bullet("Full name"),
         bullet("Profile photo (avatar)"),
         bullet("Password change"),
         para("Click your avatar in the top-right header → Profile."),
 
-        heading("14. Call Results Reference", HeadingLevel.HEADING_2),
+        heading("15. Call Results Reference", HeadingLevel.HEADING_2),
         table(
           ["Call Result", "When to Use"],
           [
@@ -413,7 +455,7 @@ const doc = new Document({
         ),
         new Paragraph({ spacing: { after: 200 } }),
 
-        heading("15. Workflow Stages Reference", HeadingLevel.HEADING_2),
+        heading("16. Workflow Stages Reference", HeadingLevel.HEADING_2),
         table(
           ["Stage", "Meaning"],
           [
@@ -429,8 +471,10 @@ const doc = new Document({
         ),
         new Paragraph({ spacing: { after: 200 } }),
 
-        heading("16. Key Business Rules", HeadingLevel.HEADING_2),
+        heading("17. Key Business Rules", HeadingLevel.HEADING_2),
         bullet("One master database — no duplicate records between teams"),
+        bullet("Each ISP has its own CRM column layout — set up columns before importing"),
+        bullet("Primary column first, match-key column second — used for display and duplicate detection"),
         bullet("Senior Sales gets 3 call attempts before Recovery handoff"),
         bullet("Recovery does not automatically return leads to Senior Sales"),
         bullet("Primary Recovery goal: reschedule the install appointment"),
@@ -439,7 +483,7 @@ const doc = new Document({
         bullet("ISP complaints and price requests go to Alerts for management"),
         bullet("Every call, note, and field change is tracked in the activity log"),
 
-        heading("17. Quick Daily Checklist", HeadingLevel.HEADING_2),
+        heading("18. Quick Daily Checklist", HeadingLevel.HEADING_2),
         heading("Senior Sales Agent", HeadingLevel.HEADING_3),
         numbered("Check Dashboard for new imports"),
         numbered("Open Senior Sales Team — work your leads"),
@@ -454,18 +498,19 @@ const doc = new Document({
         numbered("Use 3-way call option when a senior helps close"),
 
         heading("Manager / Admin", HeadingLevel.HEADING_3),
+        numbered("Set up new ISPs and define their columns before first import"),
         numbered("Import new ISP files as they arrive"),
         numbered("Assign Recovery leads to agents"),
         numbered("Review and resolve Alerts"),
         numbered("Monitor Dashboard for team performance"),
         numbered("Approve new user signups (admin)"),
 
-        heading("18. Need Help?", HeadingLevel.HEADING_2),
+        heading("19. Need Help?", HeadingLevel.HEADING_2),
         para(
-          "For a step-by-step walkthrough of one customer from import to close, see the companion document: ISP_CRM_Example_Scenario.docx"
+          "For a step-by-step walkthrough of one customer from ISP setup through import to close, see the companion document: ISP_CRM_Example_Scenario.docx"
         ),
         para(
-          "Generate updated guides anytime by running: node scripts/generate-user-guide-docx.mjs"
+          "Regenerate these guides anytime: npm run docs:user-guide  |  npm run docs:scenario"
         ),
       ],
     },
@@ -474,5 +519,16 @@ const doc = new Document({
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 const buffer = await Packer.toBuffer(doc);
-fs.writeFileSync(outputPath, buffer);
-console.log(`Created: ${outputPath}`);
+try {
+  fs.writeFileSync(outputPath, buffer);
+  console.log(`Created: ${outputPath}`);
+} catch (err) {
+  if (err?.code === "EBUSY") {
+    const fallback = outputPath.replace(/\.docx$/, "_updated.docx");
+    fs.writeFileSync(fallback, buffer);
+    console.log(`Target locked — wrote: ${fallback}`);
+    console.log("Close the open document and re-run to overwrite the main file.");
+  } else {
+    throw err;
+  }
+}

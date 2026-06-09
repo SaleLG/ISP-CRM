@@ -76,6 +76,7 @@ const doc = new Document({
           "This document walks through one complete customer journey from ISP file import through Senior Sales call attempts, Recovery Team follow-up, management alert handling, and final outcome."
         ),
         para("Document: ISP CRM Example Scenario"),
+        para(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`),
         para("Application: ISP CRM (Miller Bros Sales Loss Recovery Division)"),
 
         heading("The Situation", HeadingLevel.HEADING_2),
@@ -118,19 +119,46 @@ const doc = new Document({
         new Paragraph({ spacing: { after: 200 } }),
         para("Goal: Call John, win him back (reschedule install or new account)."),
 
+        heading("Step 0 — Set Up Comcast in the CRM", HeadingLevel.HEADING_2),
+        para("Who: Admin or Manager"),
+        para("Where: ISPs page"),
+        para(
+          "Before any Comcast file can be imported, the admin defines Comcast's CRM columns to match the spreadsheet."
+        ),
+        numbered('Click "Add ISP" → name = "Comcast" → Save'),
+        numbered('Click "Columns" on the Comcast row'),
+        numbered("Add these columns (matching the spreadsheet headers):"),
+        bullet("Name — Primary column (shown first in tables)"),
+        bullet("ACCT# — Use for duplicate matching on import (shown second)"),
+        bullet("Phone"),
+        bullet("Address"),
+        bullet("Product"),
+        bullet("Status"),
+        para(
+          "The system automatically orders columns: Primary first, match key second, then the rest. Import is blocked until at least one column exists."
+        ),
+
         heading("Step 1 — Admin Imports the File", HeadingLevel.HEADING_2),
         para("Who: Admin or Manager"),
         para("Where: Import Customers page"),
         numbered('Select ISP = "Comcast"'),
         numbered("Upload the Excel file"),
-        numbered("Map columns (auto-mapped)"),
-        numbered("Confirm import"),
+        numbered(
+          "Map columns — Name, ACCT#, Phone, Address, Product, and Status auto-map to the Comcast columns defined in Step 0"
+        ),
+        numbered("Preview the first 20 rows, then confirm import"),
         para("System automatically:"),
-        bullet("Creates John Smith as a new customer"),
+        bullet("Creates John Smith as a new customer under Comcast"),
+        bullet("Stores spreadsheet values in Comcast's custom fields (Name, ACCT#, Phone, etc.)"),
         bullet('Sets assigned_team = "Senior Sales Team"'),
         bullet('Sets workflow_stage = "New"'),
         bullet("Sets call_attempt_number = 0"),
-        para("John now appears in Senior Sales Team view and Master CRM."),
+        para(
+          "John now appears in Senior Sales Team view and on Master CRM under the Comcast tab."
+        ),
+        para(
+          "If the same file is imported again later, rows matching ACCT# CM-88421 update John's record instead of creating a duplicate."
+        ),
 
         heading("Step 2 — Senior Sales: Attempt 1", HeadingLevel.HEADING_2),
         para("Who: Senior Sales agent (e.g. Sarah)"),
@@ -233,7 +261,9 @@ const doc = new Document({
 
         new Paragraph({ spacing: { after: 200 } }),
         heading("Visual Flow (John Smith)", HeadingLevel.HEADING_2),
-        para("Excel Import (John Smith)"),
+        para("ISPs page — create Comcast + define columns"),
+        para("        ↓"),
+        para("Excel Import (John Smith → Comcast CRM)"),
         para("        ↓"),
         para("Senior Sales Team — Attempt 1, 2, 3 (no callback)"),
         para("        ↓"),
@@ -247,7 +277,13 @@ const doc = new Document({
 
         heading("Key Business Rules", HeadingLevel.HEADING_2),
         bullet(
-          "One customer record — teams only filter the same data, nothing is duplicated."
+          "One customer record per person per ISP — teams only filter the same data, nothing is duplicated."
+        ),
+        bullet(
+          "Each ISP has its own column layout — set up columns on the ISPs page before importing."
+        ),
+        bullet(
+          "Duplicate imports update existing records when ACCT# (or another match-key column) matches."
         ),
         bullet("Senior Sales gets 3 tries — then hand off to Recovery."),
         bullet(
@@ -272,7 +308,7 @@ const doc = new Document({
               ],
             }),
             ...[
-              ["Admin / Manager", "Import, Master CRM, Alerts, Dashboard", "Imports file, approves price request"],
+              ["Admin / Manager", "ISPs, Import, Master CRM, Alerts, Dashboard", "Sets up Comcast columns, imports file, approves price request"],
               ["Senior Sales", "Senior Sales Team", "Makes Attempts 1, 2, 3, moves to Recovery"],
               ["Recovery", "Recovery Team", "Follows up, logs price request, closes deal"],
             ].map(
