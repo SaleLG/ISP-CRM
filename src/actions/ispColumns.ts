@@ -18,6 +18,39 @@ export async function getISPColumns(ispId: string): Promise<ISPColumn[]> {
   return data ?? [];
 }
 
+/** Primary first, match-key columns second, then the rest. Rewrites sort_order 0..n-1. */
+async function normalizeISPColumnOrder(ispId: string): Promise<ISPColumn[]> {
+  const supabase = await createClient();
+  const cols = await getISPColumns(ispId);
+  if (cols.length === 0) return [];
+
+  const primary = cols.find((c) => c.is_primary);
+  const matchKeys = cols
+    .filter((c) => c.used_for_matching && c.id !== primary?.id)
+    .sort((a, b) => a.sort_order - b.sort_order);
+  const reservedIds = new Set([
+    ...(primary ? [primary.id] : []),
+    ...matchKeys.map((c) => c.id),
+  ]);
+  const rest = cols
+    .filter((c) => !reservedIds.has(c.id))
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  const ordered = [...(primary ? [primary] : []), ...matchKeys, ...rest];
+
+  for (let i = 0; i < ordered.length; i++) {
+    const { error } = await supabase
+      .from("isp_columns")
+      .update({ sort_order: i })
+      .eq("id", ordered[i].id)
+      .eq("isp_id", ispId);
+
+    if (error) throw new Error(error.message);
+  }
+
+  return ordered.map((col, index) => ({ ...col, sort_order: index }));
+}
+
 export async function createISPColumn(params: {
   ispId: string;
   label: string;
@@ -36,17 +69,20 @@ export async function createISPColumn(params: {
     columnKey = `${baseKey}_${suffix++}`;
   }
 
-  const sort_order =
-    existing.length > 0
-      ? Math.max(...existing.map((c) => c.sort_order)) + 1
-      : 0;
+  const isPrimary = params.is_primary ?? existing.length === 0;
 
-  if (params.is_primary) {
+  if (isPrimary) {
     await supabase
       .from("isp_columns")
       .update({ is_primary: false })
       .eq("isp_id", params.ispId);
   }
+
+  const sort_order = isPrimary
+    ? 0
+    : existing.length > 0
+      ? Math.max(...existing.map((c) => c.sort_order)) + 1
+      : 0;
 
   const { data, error } = await supabase
     .from("isp_columns")
@@ -56,15 +92,17 @@ export async function createISPColumn(params: {
       label: params.label.trim(),
       field_type: "text",
       sort_order,
-      is_primary: params.is_primary ?? existing.length === 0,
+      is_primary: isPrimary,
       used_for_matching: params.used_for_matching ?? false,
     })
     .select()
     .single();
 
   if (error) throw new Error(error.message);
+
+  const normalized = await normalizeISPColumnOrder(params.ispId);
   revalidatePaths(params.ispId);
-  return data as ISPColumn;
+  return normalized.find((c) => c.id === data.id) ?? data;
 }
 
 export async function updateISPColumn(
@@ -108,8 +146,10 @@ export async function updateISPColumn(
     .single();
 
   if (error) throw new Error(error.message);
+
+  const normalized = await normalizeISPColumnOrder(column.isp_id);
   revalidatePaths(column.isp_id);
-  return data as ISPColumn;
+  return normalized.find((c) => c.id === id) ?? data;
 }
 
 export async function deleteISPColumn(id: string) {
@@ -122,33 +162,26 @@ export async function deleteISPColumn(id: string) {
     .eq("id", id)
     .single();
 
+  if (!column) throw new Error("Column not found");
+
   const { error } = await supabase.from("isp_columns").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
-  if (column?.is_primary) {
-    const { data: remaining } = await supabase
-      .from("isp_columns")
-      .select("id")
-      .eq("isp_id", column.isp_id)
-      .order("sort_order")
-      .limit(1);
+  const remaining = await getISPColumns(column.isp_id);
 
-    if (remaining?.[0]) {
-      await supabase
-        .from("isp_columns")
-        .update({ is_primary: true })
-        .eq("id", remaining[0].id);
-    }
+  if (column.is_primary && remaining.length > 0 && !remaining.some((c) => c.is_primary)) {
+    await supabase
+      .from("isp_columns")
+      .update({ is_primary: true })
+      .eq("id", remaining[0].id);
   }
 
-  if (column?.isp_id) revalidatePaths(column.isp_id);
-  return { success: true };
+  const normalized = await normalizeISPColumnOrder(column.isp_id);
+  revalidatePaths(column.isp_id);
+  return { success: true, columns: normalized };
 }
 
-export async function reorderISPColumns(
-  ispId: string,
-  orderedIds: string[]
-) {
+export async function reorderISPColumns(ispId: string, orderedIds: string[]) {
   await requireRole(["admin", "manager"]);
   const supabase = await createClient();
 
@@ -162,8 +195,9 @@ export async function reorderISPColumns(
     if (error) throw new Error(error.message);
   }
 
+  const normalized = await normalizeISPColumnOrder(ispId);
   revalidatePaths(ispId);
-  return { success: true };
+  return normalized;
 }
 
 function revalidatePaths(ispId: string) {

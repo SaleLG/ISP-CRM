@@ -30,8 +30,13 @@ import {
   updateISPColumn,
   deleteISPColumn,
   reorderISPColumns,
+  getISPColumns,
 } from "@/actions/ispColumns";
 import type { ISPColumn } from "@/lib/types";
+
+function sortColumns(cols: ISPColumn[]) {
+  return [...cols].sort((a, b) => a.sort_order - b.sort_order);
+}
 
 interface Props {
   ispId: string;
@@ -46,14 +51,26 @@ export default function ISPColumnManager({
   columns: initialColumns,
   onChange,
 }: Props) {
-  const [columns, setColumns] = useState(initialColumns);
+  const [columns, setColumns] = useState(() => sortColumns(initialColumns));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ISPColumn | null>(null);
   const [label, setLabel] = useState("");
   const [isPrimary, setIsPrimary] = useState(false);
   const [usedForMatching, setUsedForMatching] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [movingId, setMovingId] = useState<string | null>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setColumns(sortColumns(initialColumns));
+  }, [initialColumns]);
+
+  const refreshColumns = async () => {
+    const refreshed = sortColumns(await getISPColumns(ispId));
+    setColumns(refreshed);
+    onChange(refreshed);
+    return refreshed;
+  };
 
   useEffect(() => {
     if (!dialogOpen) return;
@@ -90,35 +107,22 @@ export default function ISPColumnManager({
     setLoading(true);
     try {
       if (editing) {
-        const updated = await updateISPColumn(editing.id, {
+        await updateISPColumn(editing.id, {
           label,
           is_primary: isPrimary,
           used_for_matching: usedForMatching,
         });
-        const next = columns.map((c) =>
-          c.id === editing.id
-            ? updated
-            : isPrimary
-              ? { ...c, is_primary: false }
-              : c
-        );
-        setColumns(next);
-        onChange(next);
+        await refreshColumns();
         setDialogOpen(false);
       } else {
-        const created = await createISPColumn({
+        await createISPColumn({
           ispId,
           label,
           is_primary: isPrimary,
           used_for_matching: usedForMatching,
         });
-        const next = isPrimary
-          ? columns.map((c) => ({ ...c, is_primary: false }))
-          : columns;
-        const updatedColumns = [...next, created];
-        setColumns(updatedColumns);
-        onChange(updatedColumns);
-        resetCreateForm(updatedColumns.length);
+        const refreshed = await refreshColumns();
+        resetCreateForm(refreshed.length);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save column");
@@ -135,33 +139,80 @@ export default function ISPColumnManager({
     )
       return;
     try {
-      await deleteISPColumn(id);
-      const next = columns.filter((c) => c.id !== id);
-      setColumns(next);
-      onChange(next);
+      const result = await deleteISPColumn(id);
+      const refreshed = sortColumns(result.columns ?? (await getISPColumns(ispId)));
+      setColumns(refreshed);
+      onChange(refreshed);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete column");
     }
   };
 
-  const moveColumn = async (index: number, direction: -1 | 1) => {
+  const moveColumn = async (columnId: string, direction: -1 | 1) => {
+    const sorted = sortColumns(columns);
+    const index = sorted.findIndex((c) => c.id === columnId);
+    if (index < 0) return;
+
+    const column = sorted[index];
+    if (column.is_primary) return;
+
     const target = index + direction;
-    if (target < 0 || target >= columns.length) return;
-    const reordered = [...columns];
+    if (target <= 0 || target >= sorted.length) return;
+
+    const reordered = [...sorted];
     const [item] = reordered.splice(index, 1);
     reordered.splice(target, 0, item);
-    setColumns(reordered);
-    onChange(reordered);
+
+    setMovingId(column.id);
     try {
-      await reorderISPColumns(
+      const normalized = await reorderISPColumns(
         ispId,
         reordered.map((c) => c.id)
       );
+      const refreshed = sortColumns(normalized);
+      setColumns(refreshed);
+      onChange(refreshed);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to reorder columns");
-      setColumns(columns);
-      onChange(columns);
+      await refreshColumns();
+    } finally {
+      setMovingId(null);
     }
+  };
+
+  const sortedColumns = sortColumns(columns);
+
+  const firstMatchIndex = sortedColumns.findIndex(
+    (c) => c.used_for_matching && !c.is_primary
+  );
+  const lastMatchIndex =
+    firstMatchIndex === -1
+      ? -1
+      : sortedColumns.reduce(
+          (last, c, i) =>
+            c.used_for_matching && !c.is_primary ? i : last,
+          firstMatchIndex
+        );
+
+  const canMoveUp = (column: ISPColumn, index: number) => {
+    if (movingId !== null || column.is_primary || index === 0) return false;
+    if (column.used_for_matching && !column.is_primary) {
+      return index > firstMatchIndex;
+    }
+    if (firstMatchIndex >= 0 && index <= lastMatchIndex) return false;
+    return true;
+  };
+
+  const canMoveDown = (column: ISPColumn, index: number) => {
+    if (movingId !== null || column.is_primary || index === sortedColumns.length - 1) {
+      return false;
+    }
+    if (column.used_for_matching && !column.is_primary) {
+      return index < lastMatchIndex;
+    }
+    const next = sortedColumns[index + 1];
+    if (next?.used_for_matching && !next.is_primary) return false;
+    return true;
   };
 
   return (
@@ -195,7 +246,7 @@ export default function ISPColumnManager({
             </TableRow>
           </TableHead>
           <TableBody>
-            {columns.map((column, index) => (
+            {sortedColumns.map((column, index) => (
               <TableRow key={column.id}>
                 <TableCell>{column.label}</TableCell>
                 <TableCell>
@@ -219,15 +270,15 @@ export default function ISPColumnManager({
                 <TableCell align="right">
                   <IconButton
                     size="small"
-                    disabled={index === 0}
-                    onClick={() => moveColumn(index, -1)}
+                    disabled={!canMoveUp(column, index)}
+                    onClick={() => moveColumn(column.id, -1)}
                   >
                     <ArrowUpwardIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
-                    disabled={index === columns.length - 1}
-                    onClick={() => moveColumn(index, 1)}
+                    disabled={!canMoveDown(column, index)}
+                    onClick={() => moveColumn(column.id, 1)}
                   >
                     <ArrowDownwardIcon fontSize="small" />
                   </IconButton>
