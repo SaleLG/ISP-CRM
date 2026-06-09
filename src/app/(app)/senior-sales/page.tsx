@@ -1,15 +1,34 @@
-import { Typography } from "@mui/material";
+import { Suspense } from "react";
+import { Typography, Box, Skeleton, Alert } from "@mui/material";
 import CustomerTable from "@/components/customers/CustomerTable";
 import { getCustomers } from "@/actions/customers";
-import { getISPs } from "@/actions/isps";
+import { getISPsWithCounts } from "@/actions/isps";
 import { requireAuth } from "@/lib/auth";
 
-export default async function SeniorSalesPage() {
+function TableSkeleton() {
+  return (
+    <Box>
+      <Skeleton variant="rectangular" height={48} sx={{ mb: 2, borderRadius: 1 }} />
+      <Skeleton variant="rectangular" height={560} sx={{ borderRadius: 1 }} />
+    </Box>
+  );
+}
+
+export default async function SeniorSalesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ isp?: string }>;
+}) {
   await requireAuth();
+  const { isp } = await searchParams;
   const [customers, isps] = await Promise.all([
     getCustomers({ assigned_team: "Senior Sales Team" }),
-    getISPs(),
+    getISPsWithCounts(),
   ]);
+
+  const selectedIspId =
+    isp && isps.some((item) => item.id === isp) ? isp : isps[0]?.id ?? "";
+  const selectedIsp = isps.find((item) => item.id === selectedIspId);
 
   return (
     <>
@@ -18,14 +37,30 @@ export default async function SeniorSalesPage() {
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
         Work new leads through Attempt 1, 2, and 3. Move to Recovery after 3
-        attempts with no returned call.
+        attempts with no returned call. Select an ISP tab to view that
+        ISP&apos;s customers.
       </Typography>
-      <CustomerTable
-        customers={customers}
-        isps={isps}
-        showTeamFilter={false}
-        defaultTeam="Senior Sales Team"
-      />
+
+      {isps.length === 0 ? (
+        <Alert severity="info">
+          No ISPs configured yet. Contact an admin to set up ISPs and columns.
+        </Alert>
+      ) : (
+        <Suspense fallback={<TableSkeleton />}>
+          <CustomerTable
+            customers={customers}
+            isps={isps}
+            ispColumns={selectedIsp?.columns ?? []}
+            showTeamFilter={false}
+            defaultTeam="Senior Sales Team"
+            defaultIspId={selectedIspId}
+            ispSelectorVariant="tabs"
+            syncUrlOnIspChange
+            hideAllIspTab
+            requireIspSelection
+          />
+        </Suspense>
+      )}
     </>
   );
 }

@@ -66,6 +66,8 @@ export async function createISP(name: string) {
   revalidatePath("/isps");
   revalidatePath("/import");
   revalidatePath("/customers");
+  revalidatePath("/senior-sales");
+  revalidatePath("/recovery");
   return data;
 }
 
@@ -83,6 +85,8 @@ export async function updateISP(id: string, updates: { name?: string; status?: s
   if (error) throw new Error(error.message);
   revalidatePath("/isps");
   revalidatePath("/customers");
+  revalidatePath("/senior-sales");
+  revalidatePath("/recovery");
   return data;
 }
 
@@ -94,5 +98,7 @@ export async function deleteISP(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/isps");
   revalidatePath("/customers");
+  revalidatePath("/senior-sales");
+  revalidatePath("/recovery");
   return { success: true };
 }

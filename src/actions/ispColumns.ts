@@ -203,6 +203,8 @@ export async function reorderISPColumns(ispId: string, orderedIds: string[]) {
 function revalidatePaths(ispId: string) {
   revalidatePath("/isps");
   revalidatePath("/customers");
+  revalidatePath("/senior-sales");
+  revalidatePath("/recovery");
   revalidatePath("/import");
   revalidatePath(`/customers?isp=${ispId}`);
 }

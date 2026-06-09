@@ -218,6 +218,7 @@ export async function confirmImport(params: {
   revalidatePath("/customers");
   revalidatePath("/dashboard");
   revalidatePath("/senior-sales");
+  revalidatePath("/recovery");
   revalidatePath("/import");
 
   return {

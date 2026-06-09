@@ -567,7 +567,7 @@ export default function CustomerTable({
                 {isps.map((isp) => (
                   <Tab
                     key={isp.id}
-                    label={`${isp.name} (${isp.customer_count ?? customers.filter((c) => c.isp_id === isp.id).length})`}
+                    label={`${isp.name} (${customers.filter((c) => c.isp_id === isp.id).length})`}
                   />
                 ))}
               </Tabs>

@@ -42,10 +42,29 @@ export async function signIn(
 ) {
   const supabase = await createAuthClient(rememberMe);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  let error: { message: string } | null = null;
+  try {
+    ({ error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    }));
+  } catch (err) {
+    const cause = err instanceof Error && "cause" in err ? err.cause : err;
+    const code =
+      cause && typeof cause === "object" && "code" in cause
+        ? String(cause.code)
+        : "";
+    if (
+      code === "UND_ERR_CONNECT_TIMEOUT" ||
+      (err instanceof Error && err.message.includes("fetch failed"))
+    ) {
+      return {
+        error:
+          "Cannot connect to the authentication server. Check your internet connection, disable VPN/proxy if enabled, and confirm your Supabase project is active (not paused).",
+      };
+    }
+    throw err;
+  }
 
   if (error) return { error: error.message };
 
