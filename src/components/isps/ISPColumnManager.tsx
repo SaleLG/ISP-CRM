@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -51,15 +50,20 @@ export default function ISPColumnManager({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ISPColumn | null>(null);
   const [label, setLabel] = useState("");
-  const [fieldType, setFieldType] = useState<ISPColumn["field_type"]>("text");
   const [isPrimary, setIsPrimary] = useState(false);
   const [usedForMatching, setUsedForMatching] = useState(false);
   const [loading, setLoading] = useState(false);
+  const labelInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+    const timer = window.setTimeout(() => labelInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [dialogOpen]);
 
   const openCreate = () => {
     setEditing(null);
     setLabel("");
-    setFieldType("text");
     setIsPrimary(columns.length === 0);
     setUsedForMatching(false);
     setDialogOpen(true);
@@ -68,7 +72,6 @@ export default function ISPColumnManager({
   const openEdit = (column: ISPColumn) => {
     setEditing(column);
     setLabel(column.label);
-    setFieldType(column.field_type);
     setIsPrimary(column.is_primary);
     setUsedForMatching(column.used_for_matching);
     setDialogOpen(true);
@@ -81,7 +84,6 @@ export default function ISPColumnManager({
       if (editing) {
         const updated = await updateISPColumn(editing.id, {
           label,
-          field_type: fieldType,
           is_primary: isPrimary,
           used_for_matching: usedForMatching,
         });
@@ -98,7 +100,6 @@ export default function ISPColumnManager({
         const created = await createISPColumn({
           ispId,
           label,
-          field_type: fieldType,
           is_primary: isPrimary,
           used_for_matching: usedForMatching,
         });
@@ -117,7 +118,11 @@ export default function ISPColumnManager({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this column from the CRM table? Existing customer data for this field is kept in records."))
+    if (
+      !confirm(
+        "Remove this column from the CRM table? Existing customer data for this field is kept in records."
+      )
+    )
       return;
     try {
       await deleteISPColumn(id);
@@ -138,7 +143,10 @@ export default function ISPColumnManager({
     setColumns(reordered);
     onChange(reordered);
     try {
-      await reorderISPColumns(ispId, reordered.map((c) => c.id));
+      await reorderISPColumns(
+        ispId,
+        reordered.map((c) => c.id)
+      );
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to reorder columns");
       setColumns(columns);
@@ -170,9 +178,8 @@ export default function ISPColumnManager({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Label</TableCell>
+              <TableCell>Column Name</TableCell>
               <TableCell>Key</TableCell>
-              <TableCell>Type</TableCell>
               <TableCell>Flags</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -186,10 +193,14 @@ export default function ISPColumnManager({
                     {column.column_key}
                   </Typography>
                 </TableCell>
-                <TableCell>{column.field_type}</TableCell>
                 <TableCell>
                   {column.is_primary && (
-                    <Chip label="Primary" size="small" color="primary" sx={{ mr: 0.5 }} />
+                    <Chip
+                      label="Primary"
+                      size="small"
+                      color="primary"
+                      sx={{ mr: 0.5 }}
+                    />
                   )}
                   {column.used_for_matching && (
                     <Chip label="Match key" size="small" variant="outlined" />
@@ -227,30 +238,30 @@ export default function ISPColumnManager({
         </Table>
       )}
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>{editing ? "Edit Column" : "Add Column"}</DialogTitle>
         <DialogContent>
           <TextField
-            label="Column Label"
+            inputRef={labelInputRef}
+            autoFocus
+            label="Column Name"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             fullWidth
             sx={{ mt: 1, mb: 2 }}
             placeholder="e.g. ACCT#, Install Date"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+              }
+            }}
           />
-          <TextField
-            select
-            label="Field Type"
-            value={fieldType}
-            onChange={(e) => setFieldType(e.target.value as ISPColumn["field_type"])}
-            fullWidth
-            sx={{ mb: 2 }}
-          >
-            <MenuItem value="text">Text</MenuItem>
-            <MenuItem value="phone">Phone</MenuItem>
-            <MenuItem value="date">Date</MenuItem>
-            <MenuItem value="number">Number</MenuItem>
-          </TextField>
           <FormControlLabel
             control={
               <Checkbox

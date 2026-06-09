@@ -21,7 +21,6 @@ export async function getISPColumns(ispId: string): Promise<ISPColumn[]> {
 export async function createISPColumn(params: {
   ispId: string;
   label: string;
-  field_type?: ISPColumn["field_type"];
   is_primary?: boolean;
   used_for_matching?: boolean;
 }) {
@@ -55,7 +54,7 @@ export async function createISPColumn(params: {
       isp_id: params.ispId,
       column_key: columnKey,
       label: params.label.trim(),
-      field_type: params.field_type ?? "text",
+      field_type: "text",
       sort_order,
       is_primary: params.is_primary ?? existing.length === 0,
       used_for_matching: params.used_for_matching ?? false,
@@ -72,7 +71,6 @@ export async function updateISPColumn(
   id: string,
   updates: {
     label?: string;
-    field_type?: ISPColumn["field_type"];
     is_primary?: boolean;
     used_for_matching?: boolean;
   }
@@ -98,8 +96,8 @@ export async function updateISPColumn(
   const { data, error } = await supabase
     .from("isp_columns")
     .update({
+      field_type: "text",
       ...(updates.label !== undefined ? { label: updates.label.trim() } : {}),
-      ...(updates.field_type !== undefined ? { field_type: updates.field_type } : {}),
       ...(updates.is_primary !== undefined ? { is_primary: updates.is_primary } : {}),
       ...(updates.used_for_matching !== undefined
         ? { used_for_matching: updates.used_for_matching }

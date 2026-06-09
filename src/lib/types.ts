@@ -29,7 +29,7 @@ export interface ISPColumn {
   isp_id: string;
   column_key: string;
   label: string;
-  field_type: "text" | "date" | "phone" | "number";
+  field_type: "text";
   sort_order: number;
   is_primary: boolean;
   used_for_matching: boolean;

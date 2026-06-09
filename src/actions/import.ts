@@ -59,26 +59,12 @@ async function findExistingCustomer(
     const value = customFields[column.column_key];
     if (!value) continue;
 
-    let query = supabase
+    const { data } = await supabase
       .from("customers")
       .select("id")
       .eq("isp_id", ispId)
-      .filter(`custom_fields->>${column.column_key}`, "eq", value);
-
-    if (column.field_type === "phone") {
-      const normalized = normalizePhone(value);
-      if (normalized) {
-        const { data } = await supabase
-          .from("customers")
-          .select("id")
-          .eq("isp_id", ispId)
-          .eq("normalized_phone", normalized)
-          .maybeSingle();
-        if (data) return data.id;
-      }
-    }
-
-    const { data } = await query.maybeSingle();
+      .filter(`custom_fields->>${column.column_key}`, "eq", value)
+      .maybeSingle();
     if (data) return data.id;
   }
 
