@@ -231,7 +231,7 @@ export default function ImportWizard({ isps }: Props) {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Column Mapping ({totalRows} rows detected)
+              Column Mapping ({allRows.length} rows detected)
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Map spreadsheet columns to this ISP&apos;s CRM columns. Matching
@@ -322,7 +322,7 @@ export default function ImportWizard({ isps }: Props) {
                 onClick={handleConfirm}
                 disabled={loading || mappedColumns.length === 0}
               >
-                {loading ? "Importing..." : `Confirm Import (${totalRows} rows)`}
+                {loading ? "Importing..." : `Confirm Import (${allRows.length} rows)`}
               </Button>
             </Stack>
           </CardContent>

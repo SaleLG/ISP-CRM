@@ -23,10 +23,11 @@ import {
   TEAMS,
 } from "@/lib/constants";
 import {
-  canEditRecoveryAssignment,
+  canEditSeniorAssignment,
   canEditWorkflowFields,
   canLogCall,
-  canUseRecoveryActions,
+  canUseSeniorSalesActions,
+  canUseRecycleHoldActions,
 } from "@/lib/customerPermissions";
 import {
   updateCustomer,
@@ -34,22 +35,20 @@ import {
   quickRescheduleInstall,
 } from "@/actions/customers";
 import CallLogDialog from "./CallLogDialog";
-import MoveToRecoveryButton from "./MoveToRecoveryButton";
-import { canMoveToRecovery } from "@/lib/workflow";
+import RecycleToJuniorButton from "./RecycleToJuniorButton";
+import { canRecycleToJunior } from "@/lib/workflow";
 import type { Customer, Profile } from "@/lib/types";
 
 interface Props {
   customer: Customer;
   profile: Profile;
-  recoveryTeamMembers?: Pick<Profile, "id" | "full_name">[];
-  seniorAssistUsers?: Pick<Profile, "id" | "full_name">[];
+  seniorTeamMembers?: Pick<Profile, "id" | "full_name">[];
 }
 
 export default function CustomerDetailActions({
   customer,
   profile,
-  recoveryTeamMembers = [],
-  seniorAssistUsers = [],
+  seniorTeamMembers = [],
 }: Props) {
   const [note, setNote] = useState("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
@@ -60,16 +59,18 @@ export default function CustomerDetailActions({
   const [quickLoading, setQuickLoading] = useState(false);
 
   const showWorkflowFields = canEditWorkflowFields(profile);
-  const showRecoveryAssign =
-    canEditRecoveryAssignment(customer, profile) &&
-    recoveryTeamMembers.length > 0;
+  const showSeniorAssign =
+    canEditSeniorAssignment(customer, profile) &&
+    seniorTeamMembers.length > 0;
   const showLogCall = canLogCall(customer, profile);
-  const showRecoveryActions = canUseRecoveryActions(customer, profile);
-  const showMoveToRecovery = canMoveToRecovery(customer) && showLogCall;
+  const showSeniorActions = canUseSeniorSalesActions(customer, profile);
+  const showRecycleHoldActions = canUseRecycleHoldActions(customer, profile);
+  const showRecycleToJunior =
+    showRecycleHoldActions && canRecycleToJunior(customer);
 
   const showActionButtons =
-    showLogCall || showRecoveryActions || showMoveToRecovery;
-  const showManagementFields = showRecoveryAssign || showWorkflowFields;
+    showLogCall || showSeniorActions || showRecycleToJunior;
+  const showManagementFields = showSeniorAssign || showWorkflowFields;
 
   const handleUpdate = async (field: string, value: string) => {
     await updateCustomer(customer.id, { [field]: value || null });
@@ -107,9 +108,10 @@ export default function CustomerDetailActions({
         </Typography>
 
         <Stack spacing={2}>
-          {showRecoveryActions && (
+          {showSeniorActions && (
             <Alert severity="info" sx={{ py: 0.5 }}>
-              Focus: get the customer to reschedule their install appointment.
+              Follow up on callback or reschedule request and close the lead
+              when resolved.
             </Alert>
           )}
 
@@ -124,7 +126,7 @@ export default function CustomerDetailActions({
             </Button>
           )}
 
-          {showRecoveryActions && (
+          {showSeniorActions && (
             <>
               <Button
                 variant="contained"
@@ -146,27 +148,35 @@ export default function CustomerDetailActions({
             </>
           )}
 
-          {showMoveToRecovery && (
-            <MoveToRecoveryButton
+          {showRecycleToJunior && (
+            <RecycleToJuniorButton
               customerId={customer.id}
               customerName={customer.full_name || "Customer"}
             />
           )}
 
+          {showRecycleHoldActions && (
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              No Reply basket — follow-up date:{" "}
+              {customer.follow_up_date || "not set"}. Send back to Junior Sales
+              when ready to recycle.
+            </Alert>
+          )}
+
           {showActionButtons && showManagementFields && <Divider />}
 
-          {showRecoveryAssign && (
+          {showSeniorAssign && (
             <TextField
               select
-              label="Assigned Recovery Agent"
+              label="Assigned Senior Sales Rep"
               value={customer.assigned_user_id || ""}
               onChange={(e) => handleUpdate("assigned_user_id", e.target.value)}
               size="small"
               fullWidth
-              helperText="Assign the Recovery agent working this lead"
+              helperText="Assign the senior rep handling this callback or reschedule"
             >
               <MenuItem value="">Unassigned</MenuItem>
-              {recoveryTeamMembers.map((u) => (
+              {seniorTeamMembers.map((u) => (
                 <MenuItem key={u.id} value={u.id}>
                   {u.full_name || "Unknown"}
                 </MenuItem>
@@ -314,8 +324,7 @@ export default function CustomerDetailActions({
             customerId={customer.id}
             customerName={customer.full_name || "Customer"}
             currentAttempts={customer.call_attempt_number}
-            isRecovery={showRecoveryActions}
-            seniorAssistUsers={seniorAssistUsers}
+            emphasizeReschedule={showSeniorActions}
           />
           <CallLogDialog
             open={rescheduleDialogOpen}
@@ -323,8 +332,7 @@ export default function CustomerDetailActions({
             customerId={customer.id}
             customerName={customer.full_name || "Customer"}
             currentAttempts={customer.call_attempt_number}
-            isRecovery
-            seniorAssistUsers={seniorAssistUsers}
+            emphasizeReschedule
             defaultCallResult="Rescheduled"
           />
         </>

@@ -10,15 +10,18 @@ import {
   DialogActions,
   Typography,
 } from "@mui/material";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import { moveToRecovery } from "@/actions/customers";
+import ReplayIcon from "@mui/icons-material/Replay";
+import { recycleToJunior } from "@/actions/customers";
 
 interface Props {
   customerId: string;
   customerName: string;
 }
 
-export default function MoveToRecoveryButton({ customerId, customerName }: Props) {
+export default function RecycleToJuniorButton({
+  customerId,
+  customerName,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,11 +29,11 @@ export default function MoveToRecoveryButton({ customerId, customerName }: Props
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      const result = await moveToRecovery(customerId);
+      await recycleToJunior(customerId);
       setOpen(false);
-      router.push(result.redirectTo);
+      router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to move customer");
+      alert(err instanceof Error ? err.message : "Failed to recycle lead");
     } finally {
       setLoading(false);
     }
@@ -40,19 +43,20 @@ export default function MoveToRecoveryButton({ customerId, customerName }: Props
     <>
       <Button
         variant="contained"
-        color="warning"
-        startIcon={<SwapHorizIcon />}
+        color="primary"
+        startIcon={<ReplayIcon />}
         onClick={() => setOpen(true)}
       >
-        Move to Recovery Team
+        Send back to Junior Sales
       </Button>
       <Dialog open={open} onClose={() => !loading && setOpen(false)}>
-        <DialogTitle>Move to Recovery Team</DialogTitle>
+        <DialogTitle>Recycle to Junior Sales</DialogTitle>
         <DialogContent>
           <Typography>
-            Move <strong>{customerName}</strong> to the Recovery Team?
-            This will set transfer status to &quot;Moved to Recovery&quot; and
-            workflow stage to &quot;In Recovery&quot;.
+            Send <strong>{customerName}</strong> back to the Junior Sales Team
+            for a new outreach round? Attempt count will reset to 0 and the lead
+            will appear as a recycled lead (not mixed with in-progress work on
+            other juniors until assigned).
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -61,11 +65,10 @@ export default function MoveToRecoveryButton({ customerId, customerName }: Props
           </Button>
           <Button
             variant="contained"
-            color="warning"
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? "Moving..." : "Confirm Move"}
+            {loading ? "Sending..." : "Confirm"}
           </Button>
         </DialogActions>
       </Dialog>

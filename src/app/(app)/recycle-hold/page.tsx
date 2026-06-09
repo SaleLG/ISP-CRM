@@ -3,8 +3,7 @@ import { Typography, Box, Skeleton, Alert } from "@mui/material";
 import CustomerTable from "@/components/customers/CustomerTable";
 import { getCustomers } from "@/actions/customers";
 import { getISPsWithCounts } from "@/actions/isps";
-import { getTeamMembers } from "@/actions/team";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 function TableSkeleton() {
   return (
@@ -15,44 +14,48 @@ function TableSkeleton() {
   );
 }
 
-export default async function RecoveryPage({
+export default async function RecycleHoldPage({
   searchParams,
 }: {
   searchParams: Promise<{ isp?: string }>;
 }) {
-  const profile = await requireAuth();
+  await requireRole(["admin", "manager"]);
   const { isp } = await searchParams;
 
-  const filters: { assigned_team: string; assigned_user_id?: string } = {
-    assigned_team: "Recovery Team",
-  };
-
-  if (profile.role === "recovery") {
-    filters.assigned_user_id = profile.id;
-  }
-
-  const [customers, isps, recoveryTeamMembers] = await Promise.all([
-    getCustomers(filters),
+  const [customers, isps] = await Promise.all([
+    getCustomers({ assigned_team: "Recycle Hold" }),
     getISPsWithCounts(),
-    getTeamMembers("Recovery Team"),
   ]);
-
-  const isManager = profile.role === "admin" || profile.role === "manager";
 
   const selectedIspId =
     isp && isps.some((item) => item.id === isp) ? isp : isps[0]?.id ?? "";
   const selectedIsp = isps.find((item) => item.id === selectedIspId);
 
+  const readyCount = customers.filter((c) => {
+    if (!c.follow_up_date) return false;
+    const today = new Date().toISOString().split("T")[0];
+    return c.follow_up_date <= today;
+  }).length;
+
   return (
     <>
       <Typography variant="h4" gutterBottom>
-        Recovery Team
+        No Reply — Recycle
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        {profile.role === "recovery"
-          ? "Your assigned leads — primary goal is to reschedule install appointments. Select an ISP tab to view that ISP's customers."
-          : "Manage recovery leads and assign agents. Select an ISP tab to view that ISP's customers."}
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        Leads with no reply after 3 Junior Sales attempts are held here for 30
+        days — separate from active Junior and Senior work. When the
+        recycle date is reached, send them back to Junior Sales for another
+        outreach round.
       </Typography>
+
+      {customers.length > 0 && (
+        <Alert severity={readyCount > 0 ? "success" : "info"} sx={{ mb: 3 }}>
+          {readyCount > 0
+            ? `${readyCount} lead${readyCount === 1 ? "" : "s"} ready to recycle back to Junior Sales.`
+            : "No leads are past their 30-day follow-up date yet."}
+        </Alert>
+      )}
 
       {isps.length === 0 ? (
         <Alert severity="info">
@@ -65,12 +68,9 @@ export default async function RecoveryPage({
             isps={isps}
             ispColumns={selectedIsp?.columns ?? []}
             showTeamFilter={false}
-            defaultTeam="Recovery Team"
-            showAssigneeFilter={isManager}
-            showAssigneeColumn
-            allowAssign={isManager}
-            teamMembers={recoveryTeamMembers}
-            currentUserId={profile.id}
+            defaultTeam="Recycle Hold"
+            showFollowUpColumn
+            showReadyFilter
             defaultIspId={selectedIspId}
             ispSelectorVariant="tabs"
             syncUrlOnIspChange

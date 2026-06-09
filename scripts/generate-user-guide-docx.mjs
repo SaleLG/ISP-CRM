@@ -95,25 +95,26 @@ const doc = new Document({
     {
       properties: {},
       children: [
-        heading("ISP CRM — User Guide"),
+        heading("ISP Recovery CRM — User Guide"),
         para(
-          "This guide explains how to use the ISP CRM application for Miller Bros Sales Loss Recovery Division. It covers daily workflows for admins, managers, Senior Sales agents, and Recovery agents."
+          "This guide explains how to use ISP Recovery CRM. It covers daily workflows for admins, managers, Junior Sales agents, and Senior Sales agents."
         ),
-        para("Application: ISP CRM"),
-        para(`Version: 1.0  |  Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`),
+        para("Application: ISP Recovery CRM"),
+        para(`Version: 1.1  |  Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`),
 
         heading("1. What This App Does", HeadingLevel.HEADING_2),
         para(
-          "ISP CRM is a web-based customer recovery system. It helps your team:"
+          "ISP Recovery CRM is a web-based customer recovery system. It helps your team:"
         ),
         bullet("Set up a separate CRM table for each ISP with custom columns"),
         bullet("Import customer lists from ISP Excel/CSV files into the correct ISP table"),
-        bullet("Track call attempts and workflow stages"),
-        bullet("Hand off leads from Senior Sales to Recovery after 3 attempts"),
-        bullet("Assign Recovery leads to specific agents"),
+        bullet("Run first outreach attempts on the Junior Sales Team"),
+        bullet("Escalate callback and reschedule requests to Senior Sales for manager assignment"),
+        bullet("Auto-move no-reply leads to a manager-only 30-day recycle basket after 3 attempts"),
+        bullet("Assign Senior Sales escalations to specific agents"),
         bullet("Log calls, notes, and outcomes on each customer"),
         bullet("Flag ISP complaints and price approvals for management review"),
-        bullet("View dashboards and reports on recovery progress"),
+        bullet("View dashboards and reports on outreach and outcomes"),
         para(
           "All teams work from one master customer database. Each ISP has its own column layout, but records are never duplicated — team pages are filtered views of the same data."
         ),
@@ -133,7 +134,7 @@ const doc = new Document({
         numbered("Enter your full name, email, and password"),
         numbered("Submit the form"),
         para(
-          "New accounts are created as Senior Sales users and remain inactive until an admin approves them on the Users page. You will see a Pending Approval screen until activated. The admin sets your final role (Admin, Manager, Senior Sales, or Recovery) when approving you."
+          "New accounts are created as Junior Sales users and remain inactive until an admin approves them on the Users page. You will see a Pending Approval screen until activated. The admin sets your final role (Admin, Manager, Junior Sales, or Senior Sales) when approving you."
         ),
 
         heading("2.3 User Roles", HeadingLevel.HEADING_3),
@@ -142,19 +143,19 @@ const doc = new Document({
           [
             [
               "Admin",
-              "Everything — Dashboard, Import, Master CRM, Senior Sales, Recovery, Alerts, ISPs, Users, Profile",
+              "Everything — Dashboard, Import, Master CRM, Junior Sales, Senior Sales, No Reply — Recycle, Alerts, ISPs, Users, Profile",
             ],
             [
               "Manager",
-              "Dashboard, Import, Master CRM, Senior Sales, Recovery, Alerts, ISPs, Profile (no Users page)",
+              "Dashboard, Import, Master CRM, Junior Sales, Senior Sales, No Reply — Recycle, Alerts, ISPs, Profile (no Users page)",
+            ],
+            [
+              "Junior Sales",
+              "Dashboard and Junior Sales Team view only",
             ],
             [
               "Senior Sales",
-              "Dashboard and Senior Sales Team view only",
-            ],
-            [
-              "Recovery",
-              "Dashboard and Recovery Team view only (your assigned leads)",
+              "Dashboard and Senior Sales Team view only (your assigned escalations)",
             ],
           ]
         ),
@@ -170,8 +171,9 @@ const doc = new Document({
             ["Dashboard", "Everyone", "Overview stats and charts"],
             ["Import Customers", "Admin, Manager", "Upload ISP Excel/CSV files"],
             ["Master CRM", "Admin, Manager", "Per-ISP customer tables with custom columns"],
-            ["Senior Sales Team", "Admin, Manager, Senior Sales", "Leads for first 3 call attempts"],
-            ["Recovery Team", "Admin, Manager, Recovery", "Recovery follow-up and install reschedules"],
+            ["Junior Sales Team", "Admin, Manager, Junior Sales", "First 3 outreach attempts on new leads"],
+            ["Senior Sales Team", "Admin, Manager, Senior Sales", "Callback/reschedule escalations — manager assigns reps"],
+            ["No Reply — Recycle", "Admin, Manager", "30-day hold for no-reply leads; send back to Junior Sales"],
             ["Alerts", "Admin, Manager", "ISP complaints and price approvals"],
             ["ISPs", "Admin, Manager", "Create ISPs, define CRM columns, open each ISP's table"],
             ["Users", "Admin only", "Approve and manage user accounts"],
@@ -182,10 +184,10 @@ const doc = new Document({
 
         heading("4. Dashboard", HeadingLevel.HEADING_2),
         para("The Dashboard gives a quick snapshot of CRM activity:"),
-        bullet("Total customers and breakdown by team"),
-        bullet("Outcomes (Rescheduled, Recovered, Closed, etc.)"),
-        bullet("Alerts needing attention"),
-        bullet("Recent activity trends"),
+        bullet("Total customers and breakdown by team (Junior Sales, Senior Sales, Recycle Hold)"),
+        bullet("Outcomes (Rescheduled, New Account Created, Closed, etc.)"),
+        bullet("No Reply — Recycle Hold, Ready to Recycle, and alerts needing attention"),
+        bullet("Charts by ISP, workflow stage, and call attempts by team"),
         para("Use this page at the start of each day to see workload and results."),
 
         heading("5. Setting Up an ISP (Required Before Import)", HeadingLevel.HEADING_2),
@@ -239,7 +241,7 @@ const doc = new Document({
         bullet("If a row matches an existing customer for the same ISP on any match-key field, the record is updated instead of creating a duplicate"),
         bullet("Typical setup: mark ACCT# or Phone as the match key"),
         para(
-          "New customers are assigned to Senior Sales Team with workflow stage New and 0 call attempts."
+          "New customers are assigned to Junior Sales Team with workflow stage New and 0 call attempts."
         ),
 
         heading("7. Master CRM", HeadingLevel.HEADING_2),
@@ -255,118 +257,133 @@ const doc = new Document({
         bullet("Filter by team, workflow stage, or transfer status"),
         bullet("Click the primary column value to open the customer detail page"),
         bullet("Edit team and stage inline (when editable mode is on)"),
+        bullet("Bulk delete selected customers (select-all applies to the current page only)"),
         para(
           "There is no combined All ISPs view — switch tabs to work with a different ISP's customers."
         ),
 
-        heading("8. Senior Sales Team Workflow", HeadingLevel.HEADING_2),
-        para("Who: Senior Sales agents (and managers overseeing them)"),
-        para("Where: Senior Sales Team page"),
+        heading("8. Junior Sales Team Workflow", HeadingLevel.HEADING_2),
+        para("Who: Junior Sales agents (and managers overseeing them)"),
+        para("Where: Junior Sales Team page"),
         para(
-          "This view shows customers assigned to Senior Sales Team. Your job is to make up to 3 contact attempts before handing off to Recovery."
+          "This view shows customers assigned to Junior Sales Team. Your job is to make up to 3 outreach attempts. When a customer responds and wants a callback or reschedule, the lead automatically escalates to Senior Sales."
         ),
 
         heading("8.1 Finding a Lead", HeadingLevel.HEADING_3),
-        numbered("Open Senior Sales Team from the sidebar"),
+        numbered("Open Junior Sales Team from the sidebar"),
+        numbered("Select the ISP tab for the ISP you are working"),
         numbered("Use search or filters to find your lead"),
         numbered("Click the customer name to open Customer Detail"),
 
         heading("8.2 Logging a Call", HeadingLevel.HEADING_3),
         numbered('Click "Log Call" in the Actions panel'),
-        numbered("Select the call result (No Answer, Left Voicemail, Customer Answered, etc.)"),
+        numbered("Select the call result (No Answer, Left Voicemail, Customer Answered, Callback Requested, etc.)"),
         numbered("Add notes about what happened"),
         numbered('Click "Log Call" to save'),
         para("The system automatically:"),
         bullet("Increments the call attempt number"),
-        bullet("Updates workflow stage (Attempt 1, Attempt 2, Attempt 3)"),
+        bullet("Updates workflow stage (Attempt 1, Attempt 2, Attempt 3) for outreach calls"),
         bullet("Saves the call in Call Log History"),
         bullet(
-          'After 3 attempts with no success, sets transfer status to "Move to Recovery Needed"'
+          'After 3 attempts with no callback or reschedule, automatically moves the lead to No Reply — Recycle Hold for 30 days'
         ),
 
-        heading("8.3 Moving to Recovery", HeadingLevel.HEADING_3),
+        heading("8.3 Escalating to Senior Sales", HeadingLevel.HEADING_3),
         para(
-          'After 3 call attempts, a "Move to Recovery Team" button appears on the customer detail page.'
+          "When a customer replies to outreach and wants a callback or reschedule, log the call with:"
         ),
-        numbered("Click Move to Recovery Team"),
-        numbered("Confirm the transfer"),
+        bullet("Callback Requested — customer asked to be called back later"),
+        bullet("Rescheduled — customer wants to reschedule their install"),
+        para("The system automatically:"),
+        bullet('Moves assigned_team to "Senior Sales Team"'),
+        bullet('Sets transfer_status to "Senior Review"'),
+        bullet("Clears any assignee so a manager can assign an available senior rep"),
+        bullet("Logs the escalation in the Activity Timeline"),
+        para(
+          "The lead disappears from Junior Sales view and appears on the Senior Sales Team page for manager assignment."
+        ),
+
+        heading("8.4 No Reply — Automatic Recycle Hold", HeadingLevel.HEADING_3),
+        para(
+          "After 3 call attempts with no returned call, the system automatically moves the customer to the recycle basket. No manual button is required."
+        ),
         para("The customer:"),
-        bullet('Moves to assigned_team = Recovery Team'),
-        bullet('Gets workflow_stage = In Recovery'),
-        bullet("Disappears from Senior Sales view and appears in Recovery Team view"),
+        bullet('Moves to assigned_team = Recycle Hold'),
+        bullet('Gets workflow_stage = No Reply - Hold'),
+        bullet('Gets transfer_status = Recycle in 30 Days'),
+        bullet("follow_up_date is set to 30 days from today"),
+        bullet("Disappears from Junior Sales view — only managers see them on No Reply — Recycle"),
         bullet("Stays as the same record — not copied"),
 
-        heading("9. Recovery Team Workflow", HeadingLevel.HEADING_2),
-        para("Who: Recovery agents and managers"),
-        para("Where: Recovery Team page"),
+        heading("9. Senior Sales Team Workflow", HeadingLevel.HEADING_2),
+        para("Who: Senior Sales agents and managers"),
+        para("Where: Senior Sales Team page"),
         para(
-          "Recovery handles customers who could not be reached or closed by Senior Sales. The primary goal is to reschedule install appointments for customers who did not complete their initial install."
+          "Senior Sales handles escalated callback and reschedule leads from Junior Sales. Managers assign leads to available senior reps; seniors work only their assigned leads."
         ),
 
-        heading("9.1 Viewing Your Leads", HeadingLevel.HEADING_3),
+        heading("9.1 Viewing Escalated Leads", HeadingLevel.HEADING_3),
         bullet(
-          "Recovery agents only see leads assigned to them by a manager"
+          "Senior Sales agents only see leads assigned to them by a manager"
         ),
         bullet(
-          "Managers and admins see all Recovery leads and can filter by agent"
+          "Managers and admins see all Senior Sales leads and can filter by assignee"
         ),
         bullet(
-          'Use the "Assigned To" filter: All agents, My leads, Unassigned, or a specific agent'
+          'Use the "Assigned To" filter: All agents, Unassigned, or a specific senior rep'
+        ),
+        bullet(
+          'Unassigned leads have transfer_status = "Senior Review" and need manager assignment'
         ),
 
         heading("9.2 Assigning Leads (Managers)", HeadingLevel.HEADING_3),
-        para("Managers assign Recovery agents in two ways:"),
+        para("Managers assign Senior Sales reps in two ways:"),
         numbered(
-          "On the Recovery Team table — use the Assigned To dropdown in each row"
+          "On the Senior Sales Team table — use the Assigned To dropdown in each row"
         ),
         numbered(
-          "On Customer Detail — use the Assigned Recovery Agent dropdown in Actions"
+          "On Customer Detail — use the Assigned Senior Sales Rep dropdown in Actions"
         ),
         para(
-          "Unassigned leads are visible to managers. Assign them before agents can work them."
+          "Assign escalated leads to whoever is available. A scheduling rotation may be added in a future version."
         ),
 
-        heading("9.3 Logging Recovery Calls", HeadingLevel.HEADING_3),
-        numbered("Open the customer from Recovery Team"),
+        heading("9.3 Logging Senior Sales Calls", HeadingLevel.HEADING_3),
+        numbered("Open the assigned customer from Senior Sales Team"),
         numbered('Click "Log Call"'),
         numbered(
-          'Select a result — "Rescheduled" is the primary success outcome'
+          "Select a result — Callback Requested, Rescheduled, New Account Created, Not Interested, etc."
         ),
-        numbered("Add notes (new install date, customer availability, etc.)"),
+        numbered("Add notes (callback time, new install date, outcome, etc.)"),
         numbered("Save the call"),
-        para("Recovery-specific options:"),
-        bullet(
-          'Reschedule Install — opens the call log pre-filled with "Rescheduled"'
-        ),
-        bullet(
-          'Quick log: Rescheduled — one-click log when the appointment is already confirmed'
-        ),
-        bullet(
-          "3-way call with Senior Sales — check this box when a senior joins the call to help close the sale (for commission tracking)"
-        ),
-        bullet(
-          "When 3-way is checked, select which senior assisted from the dropdown"
-        ),
-
-        heading("9.4 3-Way Calls", HeadingLevel.HEADING_3),
         para(
-          "When a trainee Recovery agent adds a Senior Sales rep on a 3-way call to close a sale:"
+          "Senior reps complete the follow-up call or reschedule and close the lead when appropriate."
         ),
-        numbered('Log the call as usual'),
-        numbered('Check "3-way call with Senior Sales"'),
-        numbered("Select the senior who assisted"),
-        numbered("Save"),
+
+        heading("10. No Reply — Recycle Workflow", HeadingLevel.HEADING_2),
+        para("Who: Admin and Manager only"),
+        para("Where: No Reply — Recycle page"),
         para(
-          "The call history shows a 3-way badge with the senior's name. This supports commission tracking."
+          "When Junior Sales cannot reach a customer after 3 attempts, the lead is automatically placed in a 30-day recycle basket. This keeps no-reply leads separate from fresh and in-progress work."
         ),
 
-        heading("9.5 Price Approval & ISP Complaints", HeadingLevel.HEADING_3),
-        para("If the customer needs a price break or has an ISP issue:"),
-        numbered('Log Call → select "Price Approval Needed" or "ISP Complaint"'),
-        numbered("Add details in notes"),
-        para("This creates an alert for management on the Alerts page."),
+        heading("10.1 Viewing Recycle Holds", HeadingLevel.HEADING_3),
+        bullet("Only admins and managers can access this page"),
+        bullet("Each row shows the recycle date (follow-up date)"),
+        bullet('Filter by Ready (30+ days elapsed) or Waiting (still in hold)'),
+        bullet("Dashboard shows total in Recycle Hold and how many are Ready to Recycle"),
 
-        heading("10. Customer Detail Page", HeadingLevel.HEADING_2),
+        heading("10.2 Sending Back to Junior Sales", HeadingLevel.HEADING_3),
+        numbered("Open the customer from No Reply — Recycle (or Customer Detail)"),
+        numbered('When the 30-day hold has passed, click "Send back to Junior Sales"'),
+        numbered("Confirm the action"),
+        para("The system:"),
+        bullet('Moves assigned_team back to Junior Sales Team'),
+        bullet('Resets workflow_stage to New and call_attempt_number to 0'),
+        bullet('Sets transfer_status to Recycled to Junior'),
+        bullet("Lead reappears on Junior Sales for a new outreach round"),
+
+        heading("11. Customer Detail Page", HeadingLevel.HEADING_2),
         para(
           "Every customer has a detail page with full information and actions. Open it by clicking a customer name from any table."
         ),
@@ -375,17 +392,17 @@ const doc = new Document({
         bullet("Workflow Status (team, assigned agent, stage, alerts, outcome)"),
         bullet("Call Log History (all past calls with agent, result, 3-way info)"),
         bullet("Notes (free-text notes from any team member)"),
-        bullet("Activity Timeline (automatic log of changes and calls)"),
+        bullet("Activity Timeline (automatic log of changes, calls, and team transfers)"),
         para("Right side — Actions panel:"),
         bullet("Log Call"),
-        bullet("Reschedule Install / Quick log (Recovery customers)"),
-        bullet("Move to Recovery Team (after 3 Senior Sales attempts)"),
-        bullet("Assigned Recovery Agent (managers)"),
+        bullet("Reschedule Install / Quick log (Senior Sales customers)"),
+        bullet("Send back to Junior Sales (managers, on Recycle Hold leads when ready)"),
+        bullet("Assigned Senior Sales Rep (managers, on Senior Sales leads)"),
         bullet("Manual field updates: team, stage, transfer status, alerts, outcome"),
         bullet("Follow-up date"),
         bullet("Add Note"),
 
-        heading("11. Alerts Page", HeadingLevel.HEADING_2),
+        heading("12. Alerts Page", HeadingLevel.HEADING_2),
         para("Who: Admin and Manager"),
         para("Where: Alerts page"),
         para("Alerts appear when a call is logged with:"),
@@ -396,10 +413,10 @@ const doc = new Document({
         numbered("Send required email to the ISP (outside the CRM)"),
         numbered('Update alert status: Needs Email → Email Sent → In Review → Resolved'),
         numbered("For price requests: Approve or Deny"),
-        numbered("Notify the Recovery agent of the decision"),
+        numbered("Notify the sales agent of the decision"),
         numbered("Agent calls the customer back to close or explain"),
 
-        heading("12. ISPs Page", HeadingLevel.HEADING_2),
+        heading("13. ISPs Page", HeadingLevel.HEADING_2),
         para("Who: Admin and Manager"),
         para(
           "The ISPs page is where you set up each ISP's CRM table before importing or viewing customers."
@@ -412,35 +429,38 @@ const doc = new Document({
           "Each import and each Master CRM tab is linked to one ISP record. Different ISPs can have completely different column layouts."
         ),
 
-        heading("13. Users Page (Admin Only)", HeadingLevel.HEADING_2),
+        heading("14. Users Page (Admin Only)", HeadingLevel.HEADING_2),
         para("Who: Admin"),
         para("Manage who can access the CRM:"),
         numbered("View all registered users"),
         numbered("Approve new signups (activate the account)"),
-        numbered("Change roles: admin, manager, senior_sales, or recovery"),
+        numbered("Change roles: admin, manager, junior_sales, or senior_sales"),
         numbered(
-          "Team is set automatically from role — Recovery role goes to Recovery Team; all other roles go to Senior Sales Team"
+          "Team is set automatically from role — Junior Sales → Junior Sales Team; Senior Sales → Senior Sales Team"
         ),
         numbered("Deactivate users who should no longer access the system"),
 
-        heading("14. Profile Page", HeadingLevel.HEADING_2),
+        heading("15. Profile Page", HeadingLevel.HEADING_2),
         para("Everyone can update their own profile:"),
         bullet("Full name"),
         bullet("Profile photo (avatar)"),
         bullet("Password change"),
         para("Click your avatar in the top-right header → Profile."),
 
-        heading("15. Call Results Reference", HeadingLevel.HEADING_2),
+        heading("16. Call Results Reference", HeadingLevel.HEADING_2),
         table(
           ["Call Result", "When to Use"],
           [
             ["No Answer", "Phone rang, nobody picked up"],
             ["Left Voicemail", "You left a voicemail message"],
             ["Customer Answered", "Spoke with the customer (general)"],
-            ["Callback Requested", "Customer asked to be called back later"],
+            [
+              "Callback Requested",
+              "Customer asked to be called back later — escalates from Junior to Senior Sales",
+            ],
             [
               "Rescheduled",
-              "Install appointment rescheduled (primary Recovery success)",
+              "Install appointment rescheduled — escalates from Junior to Senior Sales",
             ],
             ["New Account Created", "Customer signed up for a new account"],
             ["Not Interested", "Customer declined — close the lead"],
@@ -455,14 +475,13 @@ const doc = new Document({
         ),
         new Paragraph({ spacing: { after: 200 } }),
 
-        heading("16. Workflow Stages Reference", HeadingLevel.HEADING_2),
+        heading("17. Workflow Stages Reference", HeadingLevel.HEADING_2),
         table(
           ["Stage", "Meaning"],
           [
             ["New", "Just imported, no calls yet"],
-            ["Attempt 1 / 2 / 3", "Senior Sales call attempts"],
-            ["Recovery Needed", "Flagged for Recovery handoff"],
-            ["In Recovery", "Active on Recovery Team"],
+            ["Attempt 1 / 2 / 3", "Junior Sales outreach attempts"],
+            ["No Reply - Hold", "In 30-day recycle basket after 3 no-response attempts"],
             ["Callback Requested", "Customer wants a return call"],
             ["Rescheduled", "Install appointment set"],
             ["New Account Created", "Customer re-signed"],
@@ -471,41 +490,55 @@ const doc = new Document({
         ),
         new Paragraph({ spacing: { after: 200 } }),
 
-        heading("17. Key Business Rules", HeadingLevel.HEADING_2),
+        heading("18. Transfer Status Reference", HeadingLevel.HEADING_2),
+        table(
+          ["Transfer Status", "Meaning"],
+          [
+            ["None", "No pending transfer"],
+            ["Senior Review", "Escalated to Senior Sales — awaiting manager assignment"],
+            ["Recycle in 30 Days", "Junior Sales finished 3 attempts — auto-moved to recycle hold"],
+            ["Recycled to Junior", "Manager sent lead back to Junior Sales for a new round"],
+            ["Management Review", "ISP complaint or price approval alert active"],
+          ]
+        ),
+        new Paragraph({ spacing: { after: 200 } }),
+
+        heading("19. Key Business Rules", HeadingLevel.HEADING_2),
         bullet("One master database — no duplicate records between teams"),
         bullet("Each ISP has its own CRM column layout — set up columns before importing"),
         bullet("Primary column first, match-key column second — used for display and duplicate detection"),
-        bullet("Senior Sales gets 3 call attempts before Recovery handoff"),
-        bullet("Recovery does not automatically return leads to Senior Sales"),
-        bullet("Primary Recovery goal: reschedule the install appointment"),
-        bullet("Managers assign Recovery leads to specific agents"),
-        bullet("3-way calls with seniors are logged for commission tracking"),
+        bullet("Junior Sales gets 3 outreach attempts before automatic recycle hold"),
+        bullet("Callback Requested or Rescheduled from Junior Sales escalates to Senior Sales automatically"),
+        bullet("Managers assign Senior Sales reps to escalated leads"),
+        bullet("No-reply leads auto-move to Recycle Hold for 30 days — manager-only view"),
+        bullet("Managers send recycled leads back to Junior Sales when the hold period ends"),
         bullet("ISP complaints and price requests go to Alerts for management"),
         bullet("Every call, note, and field change is tracked in the activity log"),
 
-        heading("18. Quick Daily Checklist", HeadingLevel.HEADING_2),
-        heading("Senior Sales Agent", HeadingLevel.HEADING_3),
+        heading("20. Quick Daily Checklist", HeadingLevel.HEADING_2),
+        heading("Junior Sales Agent", HeadingLevel.HEADING_3),
         numbered("Check Dashboard for new imports"),
-        numbered("Open Senior Sales Team — work your leads"),
+        numbered("Open Junior Sales Team — work your leads by ISP tab"),
         numbered("Log every call with result and notes"),
-        numbered("Move to Recovery after 3 unsuccessful attempts"),
+        numbered("If customer wants callback or reschedule — log it; lead escalates to Senior Sales"),
+        numbered("After 3 no-reply attempts, the lead auto-moves to Recycle Hold — no action needed"),
 
-        heading("Recovery Agent", HeadingLevel.HEADING_3),
-        numbered("Open Recovery Team — review your assigned leads"),
-        numbered("Call customers to reschedule installs"),
-        numbered("Log calls — use Rescheduled when successful"),
-        numbered("Flag price/ISP issues for management"),
-        numbered("Use 3-way call option when a senior helps close"),
+        heading("Senior Sales Agent", HeadingLevel.HEADING_3),
+        numbered("Open Senior Sales Team — review your assigned escalations"),
+        numbered("Return callbacks and complete reschedules"),
+        numbered("Log every call with result and notes"),
+        numbered("Close leads when resolved (Rescheduled, New Account Created, Closed, etc.)"),
 
         heading("Manager / Admin", HeadingLevel.HEADING_3),
         numbered("Set up new ISPs and define their columns before first import"),
         numbered("Import new ISP files as they arrive"),
-        numbered("Assign Recovery leads to agents"),
+        numbered("Assign Senior Sales escalations to available reps"),
+        numbered("Review No Reply — Recycle and send ready leads back to Junior Sales"),
         numbered("Review and resolve Alerts"),
         numbered("Monitor Dashboard for team performance"),
         numbered("Approve new user signups (admin)"),
 
-        heading("19. Need Help?", HeadingLevel.HEADING_2),
+        heading("21. Need Help?", HeadingLevel.HEADING_2),
         para(
           "For a step-by-step walkthrough of one customer from ISP setup through import to close, see the companion document: ISP_CRM_Example_Scenario.docx"
         ),

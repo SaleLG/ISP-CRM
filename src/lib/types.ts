@@ -124,9 +124,10 @@ export interface ImportRecord {
 
 export interface DashboardStats {
   totalCustomers: number;
+  juniorSalesLeads: number;
   seniorSalesLeads: number;
-  recoveryLeads: number;
-  recoveryNeeded: number;
+  recycleHold: number;
+  recycleReady: number;
   alertsNeedingEmail: number;
   priceApprovalRequests: number;
   rescheduled: number;

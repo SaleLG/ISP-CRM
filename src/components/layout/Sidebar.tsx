@@ -15,8 +15,9 @@ import {
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import PeopleIcon from "@mui/icons-material/People";
-import PhoneIcon from "@mui/icons-material/Phone";
-import HealingIcon from "@mui/icons-material/Healing";
+import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
+import PhoneForwardedIcon from "@mui/icons-material/PhoneForwarded";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import BusinessIcon from "@mui/icons-material/Business";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
@@ -33,8 +34,9 @@ const ICONS: Record<string, React.ReactNode> = {
   Dashboard: <DashboardIcon />,
   "Import Customers": <UploadFileIcon />,
   "Master CRM": <PeopleIcon />,
-  "Senior Sales Team": <PhoneIcon />,
-  "Recovery Team": <HealingIcon />,
+  "Junior Sales Team": <ContactPhoneIcon />,
+  "Senior Sales Team": <PhoneForwardedIcon />,
+  "No Reply — Recycle": <Inventory2Icon />,
   Alerts: <NotificationsActiveIcon />,
   ISPs: <BusinessIcon />,
   Users: <ManageAccountsIcon />,
@@ -87,7 +89,7 @@ export default function Sidebar({
           fontWeight={700}
           sx={{ color: "#fff", letterSpacing: 0.5 }}
         >
-          ISP CRM
+          ISP Recovery CRM
         </Typography>
       </Box>
 

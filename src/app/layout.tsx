@@ -9,8 +9,8 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "ISP CRM",
-  description: "ISP Customer Recovery CRM",
+  title: "ISP Recovery CRM",
+  description: "ISP Recovery CRM",
 };
 
 export default function RootLayout({

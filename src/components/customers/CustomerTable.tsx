@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DataGrid,
@@ -33,7 +33,10 @@ import {
   TRANSFER_STATUSES,
   TEAMS,
   formatIspStatus,
+  normalizeStageLabel,
+  normalizeTeamLabel,
 } from "@/lib/constants";
+import { isRecycleReady } from "@/lib/workflow";
 import { updateCustomer, deleteCustomers } from "@/actions/customers";
 import {
   getCustomerDisplayName,
@@ -59,6 +62,7 @@ interface CustomerRow {
   alert_status: string;
   outcome: string;
   call_attempt_number: number;
+  follow_up_date?: string | null;
   isps?: { name: string } | null;
   profiles?: { full_name: string | null } | null;
 }
@@ -134,6 +138,8 @@ interface Props {
   syncUrlOnIspChange?: boolean;
   hideAllIspTab?: boolean;
   requireIspSelection?: boolean;
+  showFollowUpColumn?: boolean;
+  showReadyFilter?: boolean;
 }
 
 export default function CustomerTable({
@@ -154,6 +160,8 @@ export default function CustomerTable({
   syncUrlOnIspChange = false,
   hideAllIspTab = false,
   requireIspSelection = false,
+  showFollowUpColumn = false,
+  showReadyFilter = false,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -164,8 +172,13 @@ export default function CustomerTable({
   const [stageFilter, setStageFilter] = useState("");
   const [transferFilter, setTransferFilter] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
+  const [readyFilter, setReadyFilter] = useState("");
   const [rowSelectionModel, setRowSelectionModel] =
     useState<GridRowSelectionModel>([]);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25,
+  });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -227,8 +240,53 @@ export default function CustomerTable({
     } else if (assigneeFilter) {
       if (c.assigned_user_id !== assigneeFilter) return false;
     }
+    if (readyFilter === "ready" && !isRecycleReady(c.follow_up_date)) return false;
+    if (readyFilter === "waiting" && isRecycleReady(c.follow_up_date)) return false;
     return true;
   });
+
+  const currentPageRowIds = useMemo(() => {
+    const { page, pageSize } = paginationModel;
+    const start = page * pageSize;
+    return filtered.slice(start, start + pageSize).map((row) => row.id);
+  }, [filtered, paginationModel]);
+
+  const handleRowSelectionModelChange = (newModel: GridRowSelectionModel) => {
+    if (!allowBulkDelete) {
+      setRowSelectionModel(newModel);
+      return;
+    }
+
+    const newIds = [...newModel] as string[];
+    const prevIds = [...rowSelectionModel] as string[];
+    const allFilteredIds = filtered.map((row) => row.id);
+
+    const selectedAllFiltered =
+      allFilteredIds.length > 0 &&
+      newIds.length === allFilteredIds.length &&
+      allFilteredIds.every((id) => newIds.includes(id));
+
+    if (
+      selectedAllFiltered &&
+      currentPageRowIds.length < allFilteredIds.length
+    ) {
+      const otherPages = prevIds.filter((id) => !currentPageRowIds.includes(id));
+      setRowSelectionModel([...otherPages, ...currentPageRowIds]);
+      return;
+    }
+
+    const hadAllOnPage =
+      currentPageRowIds.length > 0 &&
+      currentPageRowIds.every((id) => prevIds.includes(id));
+    const clearedCurrentPage = !currentPageRowIds.some((id) => newIds.includes(id));
+
+    if (hadAllOnPage && clearedCurrentPage && prevIds.length > newIds.length) {
+      setRowSelectionModel(prevIds.filter((id) => !currentPageRowIds.includes(id)));
+      return;
+    }
+
+    setRowSelectionModel(newModel);
+  };
 
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
     await updateCustomer(id, { [field]: value || null });
@@ -427,7 +485,13 @@ export default function CustomerTable({
       minWidth: 185,
       renderCell: editable
         ? (params) => renderInlineSelect(params, "assigned_team", TEAMS)
-        : undefined,
+        : (params) => (
+            <Chip
+              label={normalizeTeamLabel(params.value)}
+              size="small"
+              variant="outlined"
+            />
+          ),
     },
     {
       field: "workflow_stage",
@@ -438,7 +502,11 @@ export default function CustomerTable({
         editable ? (
           renderInlineSelect(params, "workflow_stage", WORKFLOW_STAGES)
         ) : (
-          <Chip label={params.value} size="small" variant="outlined" />
+          <Chip
+            label={normalizeStageLabel(params.value)}
+            size="small"
+            variant="outlined"
+          />
         ),
     },
     {
@@ -449,6 +517,29 @@ export default function CustomerTable({
       align: "center",
       headerAlign: "center",
     },
+    ...(showFollowUpColumn
+      ? [
+          {
+            field: "follow_up_date",
+            headerName: "Recycle Date",
+            width: 130,
+            minWidth: 120,
+            renderCell: (params: GridRenderCellParams) => {
+              const date = params.value as string | null;
+              if (!date) return "—";
+              const ready = isRecycleReady(date);
+              return (
+                <Chip
+                  label={date}
+                  size="small"
+                  color={ready ? "success" : "default"}
+                  variant={ready ? "filled" : "outlined"}
+                />
+              );
+            },
+          } as GridColDef,
+        ]
+      : []),
     {
       field: "transfer_status",
       headerName: "Transfer",
@@ -657,6 +748,19 @@ export default function CustomerTable({
             options={assigneeOptions}
           />
         )}
+        {showReadyFilter && (
+          <FilterSelect
+            label="Recycle Status"
+            value={readyFilter}
+            onChange={setReadyFilter}
+            minWidth={180}
+            options={[
+              { value: "", label: "All" },
+              { value: "ready", label: "Ready (30+ days)" },
+              { value: "waiting", label: "Still waiting" },
+            ]}
+          />
+        )}
         {allowBulkDelete && rowSelectionModel.length > 0 && (
           <Button
             variant="outlined"
@@ -676,10 +780,11 @@ export default function CustomerTable({
           columns={columns}
           rowHeight={52}
           pageSizeOptions={[25, 50, 100]}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
           checkboxSelection={allowBulkDelete}
           rowSelectionModel={rowSelectionModel}
-          onRowSelectionModelChange={setRowSelectionModel}
+          onRowSelectionModelChange={handleRowSelectionModelChange}
           disableRowSelectionOnClick
           disableVirtualization
           autoHeight={false}

@@ -1,12 +1,26 @@
-export const TEAMS = ["Senior Sales Team", "Recovery Team"] as const;
+export const TEAMS = [
+  "Junior Sales Team",
+  "Senior Sales Team",
+  "Recycle Hold",
+] as const;
+
+/** Manager-only basket — not a user profile team */
+export const RECYCLE_HOLD_TEAM = "Recycle Hold" as const;
+
+export const RECYCLE_HOLD_DAYS = 30;
 export type Team = (typeof TEAMS)[number];
 
-export const ROLES = ["admin", "manager", "senior_sales", "recovery"] as const;
+export const ROLES = [
+  "admin",
+  "manager",
+  "junior_sales",
+  "senior_sales",
+] as const;
 export type Role = (typeof ROLES)[number];
 
-/** User team is only set for senior_sales and recovery; admin/manager have no team. */
+/** User team is only set for junior_sales and senior_sales; admin/manager have no team. */
 export function teamFromRole(role: Role | string): Team | null {
-  if (role === "recovery") return "Recovery Team";
+  if (role === "junior_sales") return "Junior Sales Team";
   if (role === "senior_sales") return "Senior Sales Team";
   return null;
 }
@@ -16,19 +30,39 @@ export const WORKFLOW_STAGES = [
   "Attempt 1",
   "Attempt 2",
   "Attempt 3",
-  "Recovery Needed",
-  "In Recovery",
+  "No Reply - Hold",
   "Callback Requested",
   "Rescheduled",
   "New Account Created",
   "Closed",
 ] as const;
 
+const LEGACY_TEAM_ALIASES: Record<string, Team> = {
+  "Recovery Team": "Recycle Hold",
+};
+
+const LEGACY_STAGE_ALIASES: Record<string, (typeof WORKFLOW_STAGES)[number]> = {
+  "Recovery Needed": "No Reply - Hold",
+  "In Recovery": "No Reply - Hold",
+};
+
+/** Map removed teams / empty values to current labels for display and reporting. */
+export function normalizeTeamLabel(team: string | null | undefined): string {
+  if (!team) return "Unassigned";
+  return LEGACY_TEAM_ALIASES[team] ?? team;
+}
+
+export function normalizeStageLabel(stage: string | null | undefined): string {
+  if (!stage) return "Unassigned";
+  return LEGACY_STAGE_ALIASES[stage] ?? stage;
+}
+
 export const TRANSFER_STATUSES = [
   "None",
-  "Move to Recovery Needed",
-  "Moved to Recovery",
+  "Senior Review",
   "Management Review",
+  "Recycle in 30 Days",
+  "Recycled to Junior",
 ] as const;
 
 export const ISP_STATUS_LABELS: Record<string, string> = {
@@ -60,21 +94,6 @@ export const CALL_RESULTS = [
   "Price Approval Needed",
 ] as const;
 
-/** Recovery team: reschedule install is the primary success outcome */
-export const RECOVERY_CALL_RESULTS = [
-  "Rescheduled",
-  "Customer Answered",
-  "Callback Requested",
-  "New Account Created",
-  "No Answer",
-  "Left Voicemail",
-  "Not Interested",
-  "Wrong Number",
-  "Do Not Call",
-  "ISP Complaint",
-  "Price Approval Needed",
-] as const;
-
 export const ALERT_TYPES = [
   "None",
   "ISP Complaint Needs Fix",
@@ -91,7 +110,6 @@ export const ALERT_STATUSES = [
 
 export const OUTCOMES = [
   "Pending",
-  "Recovered",
   "Rescheduled",
   "New Account Created",
   "Not Interested",
@@ -138,11 +156,28 @@ export const CRM_FIELDS = [
 ] as const;
 
 export const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", roles: ["admin", "manager", "senior_sales", "recovery"] },
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    roles: ["admin", "manager", "junior_sales", "senior_sales"],
+  },
   { label: "Import Customers", href: "/import", roles: ["admin", "manager"] },
   { label: "Master CRM", href: "/customers", roles: ["admin", "manager"] },
-  { label: "Senior Sales Team", href: "/senior-sales", roles: ["admin", "manager", "senior_sales"] },
-  { label: "Recovery Team", href: "/recovery", roles: ["admin", "manager", "recovery"] },
+  {
+    label: "Junior Sales Team",
+    href: "/junior-sales",
+    roles: ["admin", "manager", "junior_sales"],
+  },
+  {
+    label: "Senior Sales Team",
+    href: "/senior-sales",
+    roles: ["admin", "manager", "senior_sales"],
+  },
+  {
+    label: "No Reply — Recycle",
+    href: "/recycle-hold",
+    roles: ["admin", "manager"],
+  },
   { label: "Alerts", href: "/alerts", roles: ["admin", "manager"] },
   { label: "ISPs", href: "/isps", roles: ["admin", "manager"] },
   { label: "Users", href: "/users", roles: ["admin"] },

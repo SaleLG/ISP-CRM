@@ -8,35 +8,40 @@ export function canEditWorkflowFields(profile: Profile) {
   return isManager(profile);
 }
 
-export function canAssignRecoveryAgent(profile: Profile) {
+export function canAssignSeniorAgent(profile: Profile) {
   return isManager(profile);
 }
 
-export function canEditRecoveryAssignment(customer: Customer, profile: Profile) {
+export function canEditSeniorAssignment(customer: Customer, profile: Profile) {
   return (
-    canAssignRecoveryAgent(profile) &&
-    customer.assigned_team === "Recovery Team"
+    canAssignSeniorAgent(profile) &&
+    customer.assigned_team === "Senior Sales Team"
   );
 }
 
 export function canLogCall(customer: Customer, profile: Profile) {
   if (isManager(profile)) return true;
   if (
-    profile.role === "senior_sales" &&
-    customer.assigned_team === "Senior Sales Team"
+    profile.role === "junior_sales" &&
+    customer.assigned_team === "Junior Sales Team"
   ) {
     return true;
   }
   if (
-    profile.role === "recovery" &&
-    customer.assigned_team === "Recovery Team"
+    profile.role === "senior_sales" &&
+    customer.assigned_team === "Senior Sales Team"
   ) {
     return true;
   }
   return false;
 }
 
-export function canUseRecoveryActions(customer: Customer, profile: Profile) {
-  if (customer.assigned_team !== "Recovery Team") return false;
-  return isManager(profile) || profile.role === "recovery";
+export function canUseSeniorSalesActions(customer: Customer, profile: Profile) {
+  if (customer.assigned_team !== "Senior Sales Team") return false;
+  return isManager(profile) || profile.role === "senior_sales";
+}
+
+export function canUseRecycleHoldActions(customer: Customer, profile: Profile) {
+  if (customer.assigned_team !== "Recycle Hold") return false;
+  return isManager(profile);
 }

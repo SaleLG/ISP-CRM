@@ -3,7 +3,6 @@ import { Typography, Box, Skeleton, Alert } from "@mui/material";
 import CustomerTable from "@/components/customers/CustomerTable";
 import { getCustomers } from "@/actions/customers";
 import { getISPsWithCounts } from "@/actions/isps";
-import { getTeamMembers } from "@/actions/team";
 import { requireRole } from "@/lib/auth";
 
 function TableSkeleton() {
@@ -15,29 +14,17 @@ function TableSkeleton() {
   );
 }
 
-export default async function SeniorSalesPage({
+export default async function JuniorSalesPage({
   searchParams,
 }: {
   searchParams: Promise<{ isp?: string }>;
 }) {
-  const profile = await requireRole(["admin", "manager", "senior_sales"]);
+  await requireRole(["admin", "manager", "junior_sales"]);
   const { isp } = await searchParams;
-
-  const filters: { assigned_team: string; assigned_user_id?: string } = {
-    assigned_team: "Senior Sales Team",
-  };
-
-  if (profile.role === "senior_sales") {
-    filters.assigned_user_id = profile.id;
-  }
-
-  const [customers, isps, seniorTeamMembers] = await Promise.all([
-    getCustomers(filters),
+  const [customers, isps] = await Promise.all([
+    getCustomers({ assigned_team: "Junior Sales Team" }),
     getISPsWithCounts(),
-    getTeamMembers("Senior Sales Team"),
   ]);
-
-  const isManager = profile.role === "admin" || profile.role === "manager";
 
   const selectedIspId =
     isp && isps.some((item) => item.id === isp) ? isp : isps[0]?.id ?? "";
@@ -46,12 +33,14 @@ export default async function SeniorSalesPage({
   return (
     <>
       <Typography variant="h4" gutterBottom>
-        Senior Sales Team
+        Junior Sales Team
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        {profile.role === "senior_sales"
-          ? "Your assigned callback and reschedule leads. Follow up to close or reschedule installs. Select an ISP tab to view that ISP's customers."
-          : "Escalated callback and reschedule leads from Junior Sales. Assign available senior reps to each lead. Select an ISP tab to view that ISP's customers."}
+        Work new and recycled leads through Attempt 1, 2, and 3. When a customer
+        requests a callback or reschedule, the lead escalates to Senior Sales.
+        After 3 attempts with no reply, leads automatically move to the manager&apos;s
+        No Reply — Recycle basket for 30 days (they leave this view). Select an
+        ISP tab to view that ISP&apos;s customers.
       </Typography>
 
       {isps.length === 0 ? (
@@ -65,12 +54,7 @@ export default async function SeniorSalesPage({
             isps={isps}
             ispColumns={selectedIsp?.columns ?? []}
             showTeamFilter={false}
-            defaultTeam="Senior Sales Team"
-            showAssigneeFilter={isManager}
-            showAssigneeColumn
-            allowAssign={isManager}
-            teamMembers={seniorTeamMembers}
-            currentUserId={profile.id}
+            defaultTeam="Junior Sales Team"
             defaultIspId={selectedIspId}
             ispSelectorVariant="tabs"
             syncUrlOnIspChange

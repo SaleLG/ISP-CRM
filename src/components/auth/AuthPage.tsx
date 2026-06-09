@@ -9,7 +9,7 @@ interface AuthPageProps {
 }
 
 export default function AuthPage({
-  title = "ISP CRM",
+  title = "ISP Recovery CRM",
   subtitle,
   children,
 }: AuthPageProps) {

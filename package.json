@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "docs:user-guide": "node scripts/generate-user-guide-docx.mjs",
-    "docs:scenario": "node scripts/generate-scenario-docx.mjs"
+    "docs:scenario": "node scripts/generate-scenario-docx.mjs",
+    "docs:finalize": "node scripts/finalize-docs.mjs"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",

@@ -10,14 +10,11 @@ import {
   TextField,
   MenuItem,
   Stack,
-  FormControlLabel,
-  Checkbox,
   Alert,
   Typography,
 } from "@mui/material";
-import { CALL_RESULTS, RECOVERY_CALL_RESULTS } from "@/lib/constants";
+import { CALL_RESULTS } from "@/lib/constants";
 import { logCall } from "@/actions/customers";
-import type { Profile } from "@/lib/types";
 
 interface Props {
   open: boolean;
@@ -25,8 +22,7 @@ interface Props {
   customerId: string;
   customerName: string;
   currentAttempts: number;
-  isRecovery?: boolean;
-  seniorAssistUsers?: Pick<Profile, "id" | "full_name">[];
+  emphasizeReschedule?: boolean;
   defaultCallResult?: string;
 }
 
@@ -36,15 +32,11 @@ export default function CallLogDialog({
   customerId,
   customerName,
   currentAttempts,
-  isRecovery = false,
-  seniorAssistUsers = [],
+  emphasizeReschedule = false,
   defaultCallResult = "",
 }: Props) {
-  const results = isRecovery ? RECOVERY_CALL_RESULTS : CALL_RESULTS;
   const [callResult, setCallResult] = useState(defaultCallResult);
   const [notes, setNotes] = useState("");
-  const [isThreeWay, setIsThreeWay] = useState(false);
-  const [seniorAssistedUserId, setSeniorAssistedUserId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,8 +44,6 @@ export default function CallLogDialog({
     if (open) {
       setCallResult(defaultCallResult);
       setNotes("");
-      setIsThreeWay(false);
-      setSeniorAssistedUserId("");
       setError("");
     }
   }, [open, defaultCallResult]);
@@ -63,17 +53,10 @@ export default function CallLogDialog({
       setError("Please select a call result");
       return;
     }
-    if (isThreeWay && !seniorAssistedUserId) {
-      setError("Please select the senior who assisted on the 3-way call");
-      return;
-    }
     setLoading(true);
     setError("");
     try {
-      const result = await logCall(customerId, callResult, notes, {
-        isThreeWay,
-        seniorAssistedUserId: isThreeWay ? seniorAssistedUserId : null,
-      });
+      const result = await logCall(customerId, callResult, notes);
       if (result && "error" in result && result.error) {
         setError(result.error);
         return;
@@ -93,9 +76,9 @@ export default function CallLogDialog({
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {isRecovery && (
+          {emphasizeReschedule && (
             <Alert severity="info" sx={{ py: 0.5 }}>
-              Primary goal: reschedule the customer&apos;s install appointment.
+              Primary goal: confirm reschedule or complete the callback.
             </Alert>
           )}
           <TextField
@@ -106,9 +89,9 @@ export default function CallLogDialog({
             fullWidth
             required
           >
-            {results.map((r) => (
+            {CALL_RESULTS.map((r) => (
               <MenuItem key={r} value={r}>
-                {r === "Rescheduled" && isRecovery
+                {r === "Rescheduled" && emphasizeReschedule
                   ? "Rescheduled — Install appointment set"
                   : r}
               </MenuItem>
@@ -122,45 +105,16 @@ export default function CallLogDialog({
             rows={3}
             fullWidth
             placeholder={
-              isRecovery
+              emphasizeReschedule
                 ? "e.g. New install date/time, customer availability..."
                 : undefined
             }
           />
-          {isRecovery && (
-            <>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={isThreeWay}
-                    onChange={(e) => {
-                      setIsThreeWay(e.target.checked);
-                      if (!e.target.checked) setSeniorAssistedUserId("");
-                    }}
-                  />
-                }
-                label="3-way call with Senior Sales (for commission tracking)"
-              />
-              {isThreeWay && (
-                <TextField
-                  select
-                  label="Senior who assisted"
-                  value={seniorAssistedUserId}
-                  onChange={(e) => setSeniorAssistedUserId(e.target.value)}
-                  fullWidth
-                  required
-                  helperText="Select the senior added to close the sale"
-                >
-                  {seniorAssistUsers.map((u) => (
-                    <MenuItem key={u.id} value={u.id}>
-                      {u.full_name || "Unknown"}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </>
+          {error && (
+            <Typography color="error" variant="body2">
+              {error}
+            </Typography>
           )}
-          {error && <Typography color="error" variant="body2">{error}</Typography>}
         </Stack>
       </DialogContent>
       <DialogActions>

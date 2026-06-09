@@ -47,7 +47,7 @@ export default function UserManager({ users: initial }: { users: User[] }) {
     email: "",
     password: "",
     full_name: "",
-    role: "senior_sales",
+    role: "junior_sales",
   });
   const [loading, setLoading] = useState(false);
 
@@ -102,7 +102,7 @@ export default function UserManager({ users: initial }: { users: User[] }) {
         email: "",
         password: "",
         full_name: "",
-        role: "senior_sales",
+        role: "junior_sales",
       });
       router.refresh();
     } catch (err) {

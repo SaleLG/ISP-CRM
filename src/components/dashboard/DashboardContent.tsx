@@ -3,11 +3,11 @@
 import { Typography, Grid } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import PhoneIcon from "@mui/icons-material/Phone";
-import HealingIcon from "@mui/icons-material/Healing";
-import WarningIcon from "@mui/icons-material/Warning";
 import EmailIcon from "@mui/icons-material/Email";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import EventIcon from "@mui/icons-material/Event";
+import InventoryIcon from "@mui/icons-material/Inventory";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import StatCard from "@/components/dashboard/StatCard";
@@ -26,13 +26,16 @@ export default function DashboardContent({ stats }: { stats: DashboardStats }) {
           <StatCard title="Total Customers" value={stats.totalCustomers} icon={<PeopleIcon />} />
         </Grid>
         <Grid item xs={12} sm={6} md={4} lg={3}>
+          <StatCard title="Junior Sales Leads" value={stats.juniorSalesLeads} color="#1565c0" icon={<PhoneIcon />} />
+        </Grid>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <StatCard title="Senior Sales Leads" value={stats.seniorSalesLeads} color="#1976d2" icon={<PhoneIcon />} />
         </Grid>
         <Grid item xs={12} sm={6} md={4} lg={3}>
-          <StatCard title="Recovery Team Leads" value={stats.recoveryLeads} color="#7b1fa2" icon={<HealingIcon />} />
+          <StatCard title="No Reply — Recycle Hold" value={stats.recycleHold} color="#ed6c02" icon={<InventoryIcon />} />
         </Grid>
         <Grid item xs={12} sm={6} md={4} lg={3}>
-          <StatCard title="Recovery Needed" value={stats.recoveryNeeded} color="#ed6c02" icon={<WarningIcon />} />
+          <StatCard title="Ready to Recycle" value={stats.recycleReady} color="#2e7d32" icon={<ScheduleIcon />} />
         </Grid>
         <Grid item xs={12} sm={6} md={4} lg={3}>
           <StatCard title="Alerts Needing Email" value={stats.alertsNeedingEmail} color="#d32f2f" icon={<EmailIcon />} />

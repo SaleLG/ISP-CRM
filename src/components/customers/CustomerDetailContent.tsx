@@ -14,7 +14,11 @@ import CallHistoryTable from "./CallHistoryTable";
 import NotesSection from "./NotesSection";
 import ActivityTimeline from "./ActivityTimeline";
 import { getCustomerDisplayName, getCustomFieldValue } from "@/lib/customerFields";
-import { formatIspStatus } from "@/lib/constants";
+import {
+  formatIspStatus,
+  normalizeStageLabel,
+  normalizeTeamLabel,
+} from "@/lib/constants";
 import type { CallLog, Customer, ISPColumn, Profile } from "@/lib/types";
 
 interface Note {
@@ -41,8 +45,7 @@ interface Props {
   notes: Note[];
   activities: Activity[];
   profile: Profile;
-  recoveryTeamMembers: Pick<Profile, "id" | "full_name">[];
-  seniorAssistUsers: Pick<Profile, "id" | "full_name">[];
+  seniorTeamMembers: Pick<Profile, "id" | "full_name">[];
 }
 
 export default function CustomerDetailContent({
@@ -52,8 +55,7 @@ export default function CustomerDetailContent({
   notes,
   activities,
   profile,
-  recoveryTeamMembers,
-  seniorAssistUsers,
+  seniorTeamMembers,
 }: Props) {
   const displayName = getCustomerDisplayName(
     customer.custom_fields,
@@ -93,15 +95,18 @@ export default function CustomerDetailContent({
         ];
 
   const statusFields = [
-    { label: "Assigned Team", value: customer.assigned_team },
+    { label: "Assigned Team", value: normalizeTeamLabel(customer.assigned_team) },
     {
       label: "Assigned User",
       value: customer.profiles?.full_name || "Unassigned",
     },
-    { label: "Workflow Stage", value: customer.workflow_stage },
+    {
+      label: "Workflow Stage",
+      value: normalizeStageLabel(customer.workflow_stage),
+    },
     { label: "Transfer Status", value: customer.transfer_status },
     { label: "Call Attempts", value: String(customer.call_attempt_number) },
-    { label: "Recovery Status", value: customer.recovery_status },
+    { label: "Follow-up Date", value: customer.follow_up_date },
     { label: "Outcome", value: customer.outcome },
     { label: "Alert Type", value: customer.alert_type },
     { label: "Alert Status", value: customer.alert_status },
@@ -142,8 +147,8 @@ export default function CustomerDetailContent({
                 Workflow Status
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-                <Chip label={customer.workflow_stage} color="primary" />
-                <Chip label={customer.assigned_team} variant="outlined" />
+                <Chip label={normalizeStageLabel(customer.workflow_stage)} color="primary" />
+                <Chip label={normalizeTeamLabel(customer.assigned_team)} variant="outlined" />
                 {customer.alert_type !== "None" && (
                   <Chip label={customer.alert_type} color="error" size="small" />
                 )}
@@ -174,8 +179,7 @@ export default function CustomerDetailContent({
           <CustomerDetailActions
             customer={customer}
             profile={profile}
-            recoveryTeamMembers={recoveryTeamMembers}
-            seniorAssistUsers={seniorAssistUsers}
+            seniorTeamMembers={seniorTeamMembers}
           />
         </Grid>
       </Grid>

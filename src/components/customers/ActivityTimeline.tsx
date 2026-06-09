@@ -7,6 +7,12 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
+import { normalizeTeamLabel } from "@/lib/constants";
+
+function formatTransferValue(value: string | null) {
+  if (!value) return "";
+  return normalizeTeamLabel(value);
+}
 
 interface Activity {
   id: string;
@@ -39,7 +45,7 @@ export default function ActivityTimeline({
                 <ListItem disablePadding sx={{ py: 1 }}>
                   <ListItemText
                     primary={a.description || a.activity_type}
-                    secondary={`${a.profiles?.full_name || "System"} — ${new Date(a.created_at).toLocaleString()}${a.old_value ? ` (${a.old_value} → ${a.new_value})` : ""}`}
+                    secondary={`${a.profiles?.full_name || "System"} — ${new Date(a.created_at).toLocaleString()}${a.old_value ? ` (${formatTransferValue(a.old_value)} → ${formatTransferValue(a.new_value)})` : ""}`}
                   />
                 </ListItem>
               </div>

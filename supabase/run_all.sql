@@ -1,5 +1,12 @@
 -- ============================================================
--- ISP CRM — Complete Database Schema
+-- ISP Recovery CRM — Complete Database Setup (run once)
+-- Paste this entire file into Supabase SQL Editor and Run.
+--
+-- Combines: full_schema.sql + migrations 009 through 014
+-- Safe to re-run on an existing project (idempotent sections).
+-- ============================================================
+-- ============================================================
+-- ISP Recovery CRM — Complete Database Schema
 -- Safe to run on a fresh OR existing Supabase project
 -- ============================================================
 
@@ -524,3 +531,135 @@ UPDATE activities SET new_value = 'Recycle Hold' WHERE new_value = 'Recovery Tea
 UPDATE profiles SET team = 'Junior Sales Team' WHERE role = 'junior_sales' AND team IS DISTINCT FROM 'Junior Sales Team';
 UPDATE profiles SET team = 'Senior Sales Team' WHERE role = 'senior_sales' AND team IS DISTINCT FROM 'Senior Sales Team';
 UPDATE profiles SET team = NULL WHERE role IN ('admin', 'manager') AND team IS NOT NULL;
+
+-- ============================================================
+-- MIGRATION 009 — Backfill custom_fields & seed ISP columns
+-- (tables already created above; data steps only)
+-- ============================================================
+
+-- Backfill custom_fields from legacy fixed columns for existing customers
+UPDATE customers
+SET custom_fields = jsonb_strip_nulls(
+  jsonb_build_object(
+    'isp_status', isp_status,
+    'full_name', full_name,
+    'phone', phone,
+    'account_number', account_number,
+    'address', address,
+    'product', product,
+    'term', term,
+    'order_date', order_date::text,
+    'install_date', install_date::text,
+    'install_complete', install_complete,
+    'sales_rep_id', sales_rep_id,
+    'isp_notes', isp_notes
+  )
+)
+WHERE custom_fields = '{}'::jsonb
+  AND (
+    full_name IS NOT NULL
+    OR phone IS NOT NULL
+    OR account_number IS NOT NULL
+    OR address IS NOT NULL
+  );
+
+-- Seed default columns for ISPs that already have customer data
+INSERT INTO isp_columns (isp_id, column_key, label, field_type, sort_order, is_primary, used_for_matching)
+SELECT DISTINCT c.isp_id, defs.column_key, defs.label, defs.field_type, defs.sort_order, defs.is_primary, defs.used_for_matching
+FROM customers c
+CROSS JOIN (
+  VALUES
+    ('full_name', 'Full Name', 'text', 1, true, false),
+    ('phone', 'Phone', 'phone', 2, false, true),
+    ('account_number', 'Account Number', 'text', 3, false, true),
+    ('isp_status', 'ISP Status', 'text', 4, false, false),
+    ('address', 'Address', 'text', 5, false, true),
+    ('product', 'Product', 'text', 6, false, false),
+    ('term', 'Term', 'text', 7, false, false),
+    ('order_date', 'Order Date', 'date', 8, false, false),
+    ('install_date', 'Install Date', 'date', 9, false, false),
+    ('install_complete', 'Install Complete', 'text', 10, false, false),
+    ('sales_rep_id', 'Sales Rep ID', 'text', 11, false, false),
+    ('isp_notes', 'ISP Notes', 'text', 12, false, false)
+) AS defs(column_key, label, field_type, sort_order, is_primary, used_for_matching)
+WHERE c.isp_id IS NOT NULL
+ON CONFLICT (isp_id, column_key) DO NOTHING;
+
+-- ============================================================
+-- MIGRATIONS 012–013 — Constraint updates on existing tables
+-- (CREATE TABLE IF NOT EXISTS does not alter existing CHECKs)
+-- ============================================================
+
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_assigned_team_check;
+ALTER TABLE customers ADD CONSTRAINT customers_assigned_team_check
+  CHECK (assigned_team IN (
+    'Junior Sales Team', 'Senior Sales Team', 'Recycle Hold'
+  ));
+
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_workflow_stage_check;
+ALTER TABLE customers ADD CONSTRAINT customers_workflow_stage_check
+  CHECK (workflow_stage IN (
+    'New', 'Attempt 1', 'Attempt 2', 'Attempt 3', 'No Reply - Hold',
+    'Callback Requested', 'Rescheduled', 'New Account Created', 'Closed'
+  ));
+
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_transfer_status_check;
+ALTER TABLE customers ADD CONSTRAINT customers_transfer_status_check
+  CHECK (transfer_status IN (
+    'None', 'Senior Review', 'Management Review',
+    'Recycle in 30 Days', 'Recycled to Junior'
+  ));
+
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('admin', 'manager', 'junior_sales', 'senior_sales'));
+
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_team_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_team_check
+  CHECK (team IN ('Junior Sales Team', 'Senior Sales Team'));
+
+ALTER TABLE customers ALTER COLUMN assigned_team SET DEFAULT 'Junior Sales Team';
+ALTER TABLE imports ALTER COLUMN default_assigned_team SET DEFAULT 'Junior Sales Team';
+
+DROP FUNCTION IF EXISTS move_customer_to_recovery(UUID);
+
+-- ============================================================
+-- MIGRATION 012 — Move Junior no-reply flags into Recycle Hold
+-- ============================================================
+
+UPDATE customers
+SET
+  assigned_team = 'Recycle Hold',
+  workflow_stage = 'No Reply - Hold',
+  transfer_status = 'Recycle in 30 Days',
+  follow_up_date = COALESCE(
+    follow_up_date,
+    (CURRENT_DATE + INTERVAL '30 days')::date
+  )
+WHERE assigned_team = 'Junior Sales Team'
+  AND workflow_stage = 'Recovery Needed'
+  AND transfer_status = 'Move to Recovery Needed';
+
+-- ============================================================
+-- MIGRATION 013 — Migrate Recovery customers & users
+-- ============================================================
+
+UPDATE customers
+SET
+  assigned_team = 'Recycle Hold',
+  workflow_stage = 'No Reply - Hold',
+  transfer_status = 'Recycle in 30 Days',
+  follow_up_date = COALESCE(
+    follow_up_date,
+    (CURRENT_DATE + INTERVAL '30 days')::date
+  ),
+  assigned_user_id = NULL
+WHERE assigned_team = 'Recovery Team';
+
+UPDATE profiles
+SET role = 'junior_sales', team = 'Junior Sales Team'
+WHERE role = 'recovery';
+
+DROP POLICY IF EXISTS "Recovery see recovery customers" ON customers;
+DROP POLICY IF EXISTS "Recovery can update recovery customers" ON customers;
+

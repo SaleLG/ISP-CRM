@@ -2,7 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
+import { normalizeStageLabel, normalizeTeamLabel } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
+
+function countByLabel(
+  counts: Record<string, number>,
+  raw: string | null | undefined,
+  normalize: (value: string | null | undefined) => string
+) {
+  const label = normalize(raw);
+  counts[label] = (counts[label] || 0) + 1;
+}
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   await requireAuth();
@@ -26,26 +36,30 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   const stageCounts: Record<string, number> = {};
   for (const c of all) {
-    stageCounts[c.workflow_stage] = (stageCounts[c.workflow_stage] || 0) + 1;
+    countByLabel(stageCounts, c.workflow_stage, normalizeStageLabel);
   }
 
   const teamCounts: Record<string, number> = {};
   for (const c of all) {
-    teamCounts[c.assigned_team] = (teamCounts[c.assigned_team] || 0) + 1;
+    countByLabel(teamCounts, c.assigned_team, normalizeTeamLabel);
   }
 
   const callTeamCounts: Record<string, number> = {};
   for (const log of callLogs || []) {
-    if (log.team) {
-      callTeamCounts[log.team] = (callTeamCounts[log.team] || 0) + 1;
-    }
+    countByLabel(callTeamCounts, log.team, normalizeTeamLabel);
   }
 
   return {
     totalCustomers: all.length,
+    juniorSalesLeads: countBy("assigned_team", "Junior Sales Team"),
     seniorSalesLeads: countBy("assigned_team", "Senior Sales Team"),
-    recoveryLeads: countBy("assigned_team", "Recovery Team"),
-    recoveryNeeded: countBy("transfer_status", "Move to Recovery Needed"),
+    recycleHold: countBy("assigned_team", "Recycle Hold"),
+    recycleReady: all.filter(
+      (c) =>
+        c.assigned_team === "Recycle Hold" &&
+        c.follow_up_date &&
+        c.follow_up_date <= new Date().toISOString().split("T")[0]
+    ).length,
     alertsNeedingEmail: all.filter(
       (c) => c.alert_status === "Needs Email"
     ).length,

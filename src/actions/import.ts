@@ -99,7 +99,7 @@ function registerMatchKeys(
 async function runConfirmImport(formData: FormData) {
   const profile = await requireRole(["admin", "manager"]);
   const admin = createAdminClient();
-  const defaultTeam = "Senior Sales Team";
+  const defaultTeam = "Junior Sales Team";
 
   const ispId = String(formData.get("ispId") ?? "");
   const fileName = String(formData.get("fileName") ?? "");
@@ -377,7 +377,7 @@ async function runConfirmImport(formData: FormData) {
   revalidatePath("/customers");
   revalidatePath("/dashboard");
   revalidatePath("/senior-sales");
-  revalidatePath("/recovery");
+  revalidatePath("/recycle-hold");
   revalidatePath("/import");
 
   return {

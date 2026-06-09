@@ -8,6 +8,9 @@ import {
   getOutcomeFromCallResult,
   getWorkflowStageFromCallResult,
   getAlertFromCallResult,
+  shouldEscalateToSenior,
+  shouldMoveToRecycleHold,
+  getRecycleFollowUpDate,
 } from "@/lib/workflow";
 import type { CustomerFilters, LogCallOptions } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -127,8 +130,9 @@ export async function updateCustomer(
 
   revalidatePath("/customers");
   revalidatePath(`/customers/${id}`);
+  revalidatePath("/junior-sales");
   revalidatePath("/senior-sales");
-  revalidatePath("/recovery");
+  revalidatePath("/recycle-hold");
   revalidatePath("/dashboard");
   revalidatePath("/alerts");
 
@@ -180,7 +184,7 @@ export async function logCall(
   const stageFromResult = getWorkflowStageFromCallResult(callResult);
   if (stageFromResult) {
     updates.workflow_stage = stageFromResult;
-  } else if (team === "Senior Sales Team" && newAttemptNumber <= 3) {
+  } else if (team === "Junior Sales Team" && newAttemptNumber <= 3) {
     updates.workflow_stage = getNextAttemptStage(customer.call_attempt_number);
   }
 
@@ -197,16 +201,27 @@ export async function logCall(
     updates.transfer_status = "Management Review";
   }
 
-  if (
-    team === "Senior Sales Team" &&
-    newAttemptNumber >= 3 &&
-    !stageFromResult
-  ) {
-    updates.transfer_status = "Move to Recovery Needed";
-    updates.workflow_stage = "Recovery Needed";
+  if (team === "Junior Sales Team" && shouldEscalateToSenior(callResult)) {
+    updates.assigned_team = "Senior Sales Team";
+    updates.transfer_status = "Senior Review";
+    updates.assigned_user_id = null;
   }
 
-  const { error } = await supabase
+  const moveToRecycleHold =
+    team === "Junior Sales Team" &&
+    shouldMoveToRecycleHold(newAttemptNumber, callResult);
+
+  if (moveToRecycleHold) {
+    updates.assigned_team = "Recycle Hold";
+    updates.workflow_stage = "No Reply - Hold";
+    updates.transfer_status = "Recycle in 30 Days";
+    updates.follow_up_date = getRecycleFollowUpDate();
+    updates.assigned_user_id = null;
+  }
+
+  const admin = moveToRecycleHold ? createAdminClient() : null;
+  const db = admin ?? supabase;
+  const { error } = await db
     .from("customers")
     .update(updates)
     .eq("id", customerId);
@@ -231,9 +246,32 @@ export async function logCall(
     description: activityDesc,
   });
 
+  if (team === "Junior Sales Team" && shouldEscalateToSenior(callResult)) {
+    await supabase.from("activities").insert({
+      customer_id: customerId,
+      user_id: profile.id,
+      activity_type: "team_transfer",
+      old_value: "Junior Sales Team",
+      new_value: "Senior Sales Team",
+      description: `Escalated to Senior Sales: ${callResult}`,
+    });
+  }
+
+  if (moveToRecycleHold) {
+    await (admin ?? supabase).from("activities").insert({
+      customer_id: customerId,
+      user_id: profile.id,
+      activity_type: "team_transfer",
+      old_value: "Junior Sales Team",
+      new_value: "Recycle Hold",
+      description: `No reply after 3 attempts — recycle hold for 30 days (follow-up ${updates.follow_up_date})`,
+    });
+  }
+
   revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/junior-sales");
   revalidatePath("/senior-sales");
-  revalidatePath("/recovery");
+  revalidatePath("/recycle-hold");
   revalidatePath("/dashboard");
   revalidatePath("/alerts");
 
@@ -260,12 +298,8 @@ export async function quickRescheduleInstall(
   return { success: true };
 }
 
-export async function moveToRecovery(customerId: string) {
-  const profile = await requireAuth();
-  if (!["admin", "manager", "senior_sales"].includes(profile.role)) {
-    throw new Error("Not authorized to move customers to Recovery");
-  }
-
+export async function recycleToJunior(customerId: string) {
+  const profile = await requireRole(["admin", "manager"]);
   const supabase = await createClient();
 
   const { data: customer } = await supabase
@@ -275,21 +309,19 @@ export async function moveToRecovery(customerId: string) {
     .single();
 
   if (!customer) throw new Error("Customer not found");
-  if (customer.assigned_team !== "Senior Sales Team") {
-    throw new Error("Customer is not on Senior Sales Team");
-  }
-  if (customer.call_attempt_number < 3) {
-    throw new Error("Customer must have at least 3 call attempts");
+  if (customer.assigned_team !== "Recycle Hold") {
+    throw new Error("Customer is not in the No Reply recycle basket");
   }
 
   const updates = {
-    transfer_status: "Moved to Recovery",
-    assigned_team: "Recovery Team",
-    workflow_stage: "In Recovery",
-    recovery_status: "In Progress",
+    assigned_team: "Junior Sales Team",
+    workflow_stage: "New",
+    transfer_status: "Recycled to Junior",
+    call_attempt_number: 0,
+    follow_up_date: null,
+    assigned_user_id: null,
   };
 
-  // Use service role — RLS blocks senior_sales from changing assigned_team
   const admin = createAdminClient();
   const { error } = await admin
     .from("customers")
@@ -302,21 +334,17 @@ export async function moveToRecovery(customerId: string) {
     customer_id: customerId,
     user_id: profile.id,
     activity_type: "team_transfer",
-    old_value: "Senior Sales Team",
-    new_value: "Recovery Team",
-    description: "Moved to Recovery Team after 3 attempts with no returned call",
+    old_value: "Recycle Hold",
+    new_value: "Junior Sales Team",
+    description: "Recycled back to Junior Sales for a new outreach round",
   });
 
   revalidatePath(`/customers/${customerId}`);
-  revalidatePath("/senior-sales");
-  revalidatePath("/recovery");
+  revalidatePath("/junior-sales");
+  revalidatePath("/recycle-hold");
   revalidatePath("/dashboard");
 
-  return {
-    success: true,
-    redirectTo:
-      profile.role === "senior_sales" ? "/senior-sales" : "/recovery",
-  };
+  return { success: true };
 }
 
 export async function addNote(customerId: string, note: string) {
@@ -445,8 +473,9 @@ export async function deleteCustomers(ids: string[]) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/customers");
+  revalidatePath("/junior-sales");
   revalidatePath("/senior-sales");
-  revalidatePath("/recovery");
+  revalidatePath("/recycle-hold");
   revalidatePath("/dashboard");
   revalidatePath("/alerts");
 

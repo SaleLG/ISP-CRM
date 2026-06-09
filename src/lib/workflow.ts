@@ -1,26 +1,38 @@
 import type { Customer } from "./types";
+import { RECYCLE_HOLD_DAYS } from "./constants";
 
-const RETURNED_CALL_RESULTS = [
-  "Customer Answered",
-  "Callback Requested",
-  "Rescheduled",
-  "New Account Created",
-];
+const ESCALATION_CALL_RESULTS = ["Callback Requested", "Rescheduled"];
 
 export function getNextAttemptStage(currentAttempts: number): string {
   const next = currentAttempts + 1;
   if (next === 1) return "Attempt 1";
   if (next === 2) return "Attempt 2";
   if (next === 3) return "Attempt 3";
-  return "Recovery Needed";
+  return "No Reply - Hold";
 }
 
-export function shouldMoveToRecovery(
+export function shouldEscalateToSenior(callResult: string): boolean {
+  return ESCALATION_CALL_RESULTS.includes(callResult);
+}
+
+export function shouldMoveToRecycleHold(
   callAttemptNumber: number,
   callResult: string
 ): boolean {
-  if (RETURNED_CALL_RESULTS.includes(callResult)) return false;
+  if (getWorkflowStageFromCallResult(callResult)) return false;
   return callAttemptNumber >= 3;
+}
+
+export function getRecycleFollowUpDate(fromDate = new Date()): string {
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + RECYCLE_HOLD_DAYS);
+  return d.toISOString().split("T")[0];
+}
+
+export function isRecycleReady(followUpDate: string | null | undefined): boolean {
+  if (!followUpDate) return false;
+  const today = new Date().toISOString().split("T")[0];
+  return followUpDate <= today;
 }
 
 export function getOutcomeFromCallResult(callResult: string): string | null {
@@ -78,12 +90,6 @@ export function getAlertFromCallResult(callResult: string): {
   return null;
 }
 
-export function canMoveToRecovery(customer: Customer): boolean {
-  return (
-    customer.assigned_team === "Senior Sales Team" &&
-    customer.call_attempt_number >= 3 &&
-    !["Callback Requested", "Rescheduled", "New Account Created", "Closed"].includes(
-      customer.workflow_stage
-    )
-  );
+export function canRecycleToJunior(customer: Customer): boolean {
+  return customer.assigned_team === "Recycle Hold";
 }

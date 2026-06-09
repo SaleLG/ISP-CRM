@@ -9,6 +9,7 @@ import {
   TableRow,
   Chip,
 } from "@mui/material";
+import { normalizeTeamLabel } from "@/lib/constants";
 import type { CallLog } from "@/lib/types";
 
 export default function CallHistoryTable({ callLogs }: { callLogs: CallLog[] }) {
@@ -41,7 +42,7 @@ export default function CallHistoryTable({ callLogs }: { callLogs: CallLog[] }) 
                   </TableCell>
                   <TableCell>#{log.attempt_number}</TableCell>
                   <TableCell>{log.call_result}</TableCell>
-                  <TableCell>{log.team}</TableCell>
+                  <TableCell>{normalizeTeamLabel(log.team)}</TableCell>
                   <TableCell>{log.profiles?.full_name || "—"}</TableCell>
                   <TableCell>
                     {log.is_three_way ? (

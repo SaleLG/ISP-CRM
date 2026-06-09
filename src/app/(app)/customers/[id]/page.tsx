@@ -4,7 +4,7 @@ import {
   getCustomerNotes,
   getActivities,
 } from "@/actions/customers";
-import { getTeamMembers, getSeniorAssistUsers } from "@/actions/team";
+import { getTeamMembers } from "@/actions/team";
 import { requireAuth } from "@/lib/auth";
 import { getISPColumns } from "@/actions/ispColumns";
 import CustomerDetailContent from "@/components/customers/CustomerDetailContent";
@@ -23,13 +23,12 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const [callLogs, notes, activities, recoveryTeamMembers, seniorAssistUsers, ispColumns] =
+  const [callLogs, notes, activities, seniorTeamMembers, ispColumns] =
     await Promise.all([
       getCallLogs(id),
       getCustomerNotes(id),
       getActivities(id),
-      getTeamMembers("Recovery Team"),
-      getSeniorAssistUsers(),
+      getTeamMembers("Senior Sales Team"),
       customer.isp_id ? getISPColumns(customer.isp_id) : Promise.resolve([]),
     ]);
 
@@ -41,8 +40,7 @@ export default async function CustomerDetailPage({
       notes={notes}
       activities={activities}
       profile={profile}
-      recoveryTeamMembers={recoveryTeamMembers}
-      seniorAssistUsers={seniorAssistUsers}
+      seniorTeamMembers={seniorTeamMembers}
     />
   );
 }

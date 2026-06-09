@@ -102,7 +102,7 @@ export async function signUp(params: {
     options: {
       data: {
         full_name: params.full_name,
-        role: "senior_sales",
+        role: "junior_sales",
         approved: false,
       },
     },

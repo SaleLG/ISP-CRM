@@ -38,7 +38,7 @@ export async function requireRole(roles: Role[]): Promise<Profile> {
 
 export function canAccessTeam(profile: Profile, team: string): boolean {
   if (profile.role === "admin" || profile.role === "manager") return true;
+  if (profile.role === "junior_sales" && team === "Junior Sales Team") return true;
   if (profile.role === "senior_sales" && team === "Senior Sales Team") return true;
-  if (profile.role === "recovery" && team === "Recovery Team") return true;
   return false;
 }

@@ -52,6 +52,54 @@ export function toPlainRow(
   return out;
 }
 
+/** Headers SheetJS assigns to columns with no name in row 1 */
+function isValidHeader(header: string): boolean {
+  const trimmed = header.trim();
+  if (!trimmed) return false;
+  if (/^__EMPTY(_\d+)?$/i.test(trimmed)) return false;
+  return true;
+}
+
+function isEmptyRow(row: Record<string, string | null>): boolean {
+  return Object.values(row).every((value) => value === null);
+}
+
+/** Stop scanning after this many consecutive empty data rows */
+const MAX_CONSECUTIVE_EMPTY_ROWS = 25;
+
+type SheetColumn = { index: number; name: string };
+
+function buildColumnsFromHeaderRow(headerRow: unknown[]): SheetColumn[] {
+  const columns: SheetColumn[] = [];
+  const usedNames = new Set<string>();
+
+  headerRow.forEach((cell, index) => {
+    const baseName = toPlainValue(cell);
+    if (!baseName || !isValidHeader(baseName)) return;
+
+    let name = baseName;
+    let suffix = 2;
+    while (usedNames.has(name)) {
+      name = `${baseName} (${suffix++})`;
+    }
+    usedNames.add(name);
+    columns.push({ index, name });
+  });
+
+  return columns;
+}
+
+function rowFromLine(
+  line: unknown[],
+  columns: SheetColumn[]
+): Record<string, string | null> {
+  const row: Record<string, string | null> = {};
+  for (const { index, name } of columns) {
+    row[name] = toPlainValue(line[index]);
+  }
+  return row;
+}
+
 export function parseSpreadsheet(buffer: ArrayBuffer): {
   headers: string[];
   rows: Record<string, string | null>[];
@@ -59,23 +107,49 @@ export function parseSpreadsheet(buffer: ArrayBuffer): {
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
+
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
     raw: false,
+    defval: null,
+    blankrows: false,
   });
 
-  if (json.length === 0) {
+  if (matrix.length === 0) {
     return { headers: [], rows: [] };
   }
 
-  const rows = json.map((row) => toPlainRow(row));
-  const headers = Object.keys(rows[0]);
+  const columns = buildColumnsFromHeaderRow(matrix[0] ?? []);
+  const headers = columns.map((column) => column.name);
+
+  if (headers.length === 0) {
+    return { headers: [], rows: [] };
+  }
+
+  const rows: Record<string, string | null>[] = [];
+  let consecutiveEmpty = 0;
+
+  for (let i = 1; i < matrix.length; i++) {
+    const line = matrix[i] ?? [];
+    const row = rowFromLine(line, columns);
+
+    if (isEmptyRow(row)) {
+      consecutiveEmpty++;
+      if (consecutiveEmpty >= MAX_CONSECUTIVE_EMPTY_ROWS) break;
+      continue;
+    }
+
+    consecutiveEmpty = 0;
+    rows.push(row);
+  }
+
   return { headers, rows };
 }
 
 export function autoMapColumns(headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const header of headers) {
+    if (!isValidHeader(header)) continue;
     const crmField = COLUMN_ALIASES[normalizeHeader(header)];
     if (crmField) {
       mapping[header] = crmField;
@@ -96,6 +170,7 @@ export function autoMapToISPColumns(
   const keySet = new Set(ispColumns.map((c) => c.column_key));
 
   for (const header of headers) {
+    if (!isValidHeader(header)) continue;
     const normalized = normalizeHeader(header);
     if (labelToKey.has(normalized)) {
       mapping[header] = labelToKey.get(normalized)!;
