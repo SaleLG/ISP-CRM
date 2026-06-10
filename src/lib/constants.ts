@@ -18,10 +18,24 @@ export const ROLES = [
 ] as const;
 export type Role = (typeof ROLES)[number];
 
+const LEGACY_ROLE_ALIASES: Record<string, Role> = {
+  recovery: "junior_sales",
+};
+
+/** Normalize role strings from the database (handles spaces, casing, legacy values). */
+export function normalizeRole(role: string | null | undefined): Role | null {
+  if (!role) return null;
+  const key = role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (LEGACY_ROLE_ALIASES[key]) return LEGACY_ROLE_ALIASES[key];
+  if ((ROLES as readonly string[]).includes(key)) return key as Role;
+  return null;
+}
+
 /** User team is only set for junior_sales and senior_sales; admin/manager have no team. */
 export function teamFromRole(role: Role | string): Team | null {
-  if (role === "junior_sales") return "Junior Sales Team";
-  if (role === "senior_sales") return "Senior Sales Team";
+  const normalized = normalizeRole(role) ?? role;
+  if (normalized === "junior_sales") return "Junior Sales Team";
+  if (normalized === "senior_sales") return "Senior Sales Team";
   return null;
 }
 
@@ -182,3 +196,45 @@ export const NAV_ITEMS = [
   { label: "ISPs", href: "/isps", roles: ["admin", "manager"] },
   { label: "Users", href: "/users", roles: ["admin"] },
 ] as const;
+
+export type NavItem = (typeof NAV_ITEMS)[number];
+
+/** Sidebar links for the signed-in user's role. */
+export function getNavItemsForRole(role: string | null | undefined): NavItem[] {
+  const normalized = normalizeRole(role);
+  if (!normalized) return [];
+
+  const items = NAV_ITEMS.filter((item) =>
+    (item.roles as readonly string[]).includes(normalized)
+  );
+  if (items.length > 0) return [...items];
+
+  const fallbackHrefs: Record<Role, string[]> = {
+    admin: [
+      "/dashboard",
+      "/import",
+      "/customers",
+      "/junior-sales",
+      "/senior-sales",
+      "/recycle-hold",
+      "/alerts",
+      "/isps",
+      "/users",
+    ],
+    manager: [
+      "/dashboard",
+      "/import",
+      "/customers",
+      "/junior-sales",
+      "/senior-sales",
+      "/recycle-hold",
+      "/alerts",
+      "/isps",
+    ],
+    junior_sales: ["/dashboard", "/junior-sales"],
+    senior_sales: ["/dashboard", "/senior-sales"],
+  };
+
+  const hrefs = fallbackHrefs[normalized];
+  return NAV_ITEMS.filter((item) => hrefs.includes(item.href));
+}

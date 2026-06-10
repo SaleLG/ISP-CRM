@@ -21,7 +21,7 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import BusinessIcon from "@mui/icons-material/Business";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
-import { NAV_ITEMS } from "@/lib/constants";
+import { getNavItemsForRole } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 import {
   DRAWER_WIDTH,
@@ -52,9 +52,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
 
-  const visibleItems = NAV_ITEMS.filter((item) =>
-    (item.roles as readonly string[]).includes(profile.role)
-  );
+  const visibleItems = getNavItemsForRole(profile.role);
 
   useEffect(() => {
     visibleItems.forEach((item) => router.prefetch(item.href));

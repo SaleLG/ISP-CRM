@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Profile } from "@/lib/types";
-import type { Role } from "@/lib/constants";
+import { normalizeRole, type Role } from "@/lib/constants";
 
 export async function getSession() {
   const supabase = await createClient();
@@ -32,13 +32,15 @@ export async function requireAuth(): Promise<Profile> {
 
 export async function requireRole(roles: Role[]): Promise<Profile> {
   const profile = await requireAuth();
-  if (!roles.includes(profile.role)) redirect("/dashboard");
+  const role = normalizeRole(profile.role);
+  if (!role || !roles.includes(role)) redirect("/dashboard");
   return profile;
 }
 
 export function canAccessTeam(profile: Profile, team: string): boolean {
-  if (profile.role === "admin" || profile.role === "manager") return true;
-  if (profile.role === "junior_sales" && team === "Junior Sales Team") return true;
-  if (profile.role === "senior_sales" && team === "Senior Sales Team") return true;
+  const role = normalizeRole(profile.role);
+  if (role === "admin" || role === "manager") return true;
+  if (role === "junior_sales" && team === "Junior Sales Team") return true;
+  if (role === "senior_sales" && team === "Senior Sales Team") return true;
   return false;
 }

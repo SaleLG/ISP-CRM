@@ -14,6 +14,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { signOut } from "@/actions/auth";
+import { normalizeRole } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
 function getInitials(name: string | null): string {
@@ -73,7 +74,7 @@ export default function Header({
             {profile.full_name || "User"}
           </Typography>
           <Typography variant="caption" color="text.secondary" lineHeight={1.3}>
-            {profile.role.replace("_", " ")}
+            {(normalizeRole(profile.role) ?? profile.role).replace(/_/g, " ")}
             {profile.team ? ` · ${profile.team}` : ""}
           </Typography>
         </Box>
