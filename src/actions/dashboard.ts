@@ -2,8 +2,44 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
-import { normalizeStageLabel, normalizeTeamLabel } from "@/lib/constants";
-import type { DashboardStats } from "@/lib/types";
+import {
+  normalizeRole,
+  normalizeStageLabel,
+  normalizeTeamLabel,
+} from "@/lib/constants";
+import type { DashboardScope, DashboardStats, Profile } from "@/lib/types";
+
+type CustomerRow = {
+  id: string;
+  isp_id: string | null;
+  assigned_team: string | null;
+  assigned_user_id: string | null;
+  workflow_stage: string | null;
+  follow_up_date: string | null;
+  alert_status: string | null;
+  alert_type: string | null;
+  price_approval_status: string | null;
+  transfer_status: string | null;
+  [key: string]: unknown;
+};
+
+function scopeCustomersForDashboard(
+  customers: CustomerRow[],
+  profile: Profile,
+  role: DashboardScope
+): CustomerRow[] {
+  if (role === "senior_sales") {
+    return customers.filter(
+      (c) =>
+        c.assigned_team === "Senior Sales Team" &&
+        c.assigned_user_id === profile.id
+    );
+  }
+  if (role === "junior_sales") {
+    return customers.filter((c) => c.assigned_team === "Junior Sales Team");
+  }
+  return customers;
+}
 
 function countByLabel(
   counts: Record<string, number>,
@@ -14,18 +50,31 @@ function countByLabel(
   counts[label] = (counts[label] || 0) + 1;
 }
 
+function countStage(customers: CustomerRow[], stage: string) {
+  return customers.filter((c) => c.workflow_stage === stage).length;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
-  await requireAuth();
+  const profile = await requireAuth();
+  const role = normalizeRole(profile.role);
+  const scope: DashboardScope =
+    role === "junior_sales" || role === "senior_sales" ? role : "admin";
+
   const supabase = await createClient();
 
   const { data: customers } = await supabase.from("customers").select("*");
-  const { data: callLogs } = await supabase.from("call_logs").select("team");
+  const { data: callLogs } = await supabase
+    .from("call_logs")
+    .select("team, customer_id, call_result");
   const { data: isps } = await supabase.from("isps").select("id, name");
 
-  const all = customers || [];
+  const allCustomers = (customers || []) as CustomerRow[];
+  const all = scopeCustomersForDashboard(allCustomers, profile, scope);
+  const visibleCustomerIds = new Set(all.map((c) => c.id));
+  const today = new Date().toISOString().split("T")[0];
 
-  const countBy = (field: string, value: string) =>
-    all.filter((c) => c[field] === value).length;
+  const countByTeam = (team: string) =>
+    allCustomers.filter((c) => c.assigned_team === team).length;
 
   const ispCounts: Record<string, number> = {};
   for (const c of all) {
@@ -40,37 +89,57 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 
   const teamCounts: Record<string, number> = {};
-  for (const c of all) {
+  for (const c of allCustomers) {
     countByLabel(teamCounts, c.assigned_team, normalizeTeamLabel);
   }
 
   const callTeamCounts: Record<string, number> = {};
+  const callResultCounts: Record<string, number> = {};
+  let callsLogged = 0;
+
   for (const log of callLogs || []) {
+    if (!visibleCustomerIds.has(log.customer_id)) continue;
+    callsLogged += 1;
     countByLabel(callTeamCounts, log.team, normalizeTeamLabel);
+    if (log.call_result) {
+      callResultCounts[log.call_result] =
+        (callResultCounts[log.call_result] || 0) + 1;
+    }
   }
 
   return {
+    scope,
     totalCustomers: all.length,
-    juniorSalesLeads: countBy("assigned_team", "Junior Sales Team"),
-    seniorSalesLeads: countBy("assigned_team", "Senior Sales Team"),
-    recycleHold: countBy("assigned_team", "Recycle Hold"),
-    recycleReady: all.filter(
+    newLeads: countStage(all, "New"),
+    attempt1: countStage(all, "Attempt 1"),
+    attempt2: countStage(all, "Attempt 2"),
+    attempt3: countStage(all, "Attempt 3"),
+    callbackRequested: countStage(all, "Callback Requested"),
+    rescheduled: countStage(all, "Rescheduled"),
+    newAccountsCreated: countStage(all, "New Account Created"),
+    closed: countStage(all, "Closed"),
+    juniorSalesLeads: countByTeam("Junior Sales Team"),
+    seniorSalesLeads: countByTeam("Senior Sales Team"),
+    unassignedSeniorEscalations: allCustomers.filter(
+      (c) =>
+        c.assigned_team === "Senior Sales Team" && !c.assigned_user_id
+    ).length,
+    recycleHold: countByTeam("Recycle Hold"),
+    recycleReady: allCustomers.filter(
       (c) =>
         c.assigned_team === "Recycle Hold" &&
         c.follow_up_date &&
-        c.follow_up_date <= new Date().toISOString().split("T")[0]
+        c.follow_up_date <= today
     ).length,
-    alertsNeedingEmail: all.filter(
+    alertsNeedingEmail: allCustomers.filter(
       (c) => c.alert_status === "Needs Email"
     ).length,
-    priceApprovalRequests: all.filter(
+    priceApprovalRequests: allCustomers.filter(
       (c) =>
         c.alert_type === "Price Approval Needed" &&
         c.price_approval_status === "Pending"
     ).length,
-    rescheduled: countBy("workflow_stage", "Rescheduled"),
-    newAccountsCreated: countBy("workflow_stage", "New Account Created"),
-    closed: countBy("workflow_stage", "Closed"),
+    callsLogged,
     customersByIsp: Object.entries(ispCounts).map(([name, count]) => ({
       name,
       count,
@@ -85,6 +154,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     })),
     callAttemptsByTeam: Object.entries(callTeamCounts).map(([team, count]) => ({
       team,
+      count,
+    })),
+    callsByResult: Object.entries(callResultCounts).map(([result, count]) => ({
+      result,
       count,
     })),
   };

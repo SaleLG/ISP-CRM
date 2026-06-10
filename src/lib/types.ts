@@ -122,21 +122,35 @@ export interface ImportRecord {
   created_at: string;
 }
 
+export type DashboardScope = "admin" | "junior_sales" | "senior_sales";
+
 export interface DashboardStats {
+  scope: DashboardScope;
   totalCustomers: number;
+  /** Junior outreach pipeline */
+  newLeads: number;
+  attempt1: number;
+  attempt2: number;
+  attempt3: number;
+  /** Senior / shared outcomes */
+  callbackRequested: number;
+  rescheduled: number;
+  newAccountsCreated: number;
+  closed: number;
+  /** Admin / manager only */
   juniorSalesLeads: number;
   seniorSalesLeads: number;
+  unassignedSeniorEscalations: number;
   recycleHold: number;
   recycleReady: number;
   alertsNeedingEmail: number;
   priceApprovalRequests: number;
-  rescheduled: number;
-  newAccountsCreated: number;
-  closed: number;
+  callsLogged: number;
   customersByIsp: { name: string; count: number }[];
   customersByStage: { stage: string; count: number }[];
   customersByTeam: { team: string; count: number }[];
   callAttemptsByTeam: { team: string; count: number }[];
+  callsByResult: { result: string; count: number }[];
 }
 
 export interface CustomerFilters {

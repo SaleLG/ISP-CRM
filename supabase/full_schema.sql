@@ -347,6 +347,9 @@ CREATE POLICY "Senior sales see senior sales customers"
   USING (
     get_my_role() = 'senior_sales'
     AND assigned_team = 'Senior Sales Team'
+    AND assigned_user_id = (
+      SELECT id FROM profiles WHERE auth_user_id = auth.uid() LIMIT 1
+    )
   );
 
 DROP POLICY IF EXISTS "Admin/manager can update all customers" ON customers;
@@ -372,10 +375,16 @@ CREATE POLICY "Senior sales can update senior sales customers"
   USING (
     get_my_role() = 'senior_sales'
     AND assigned_team = 'Senior Sales Team'
+    AND assigned_user_id = (
+      SELECT id FROM profiles WHERE auth_user_id = auth.uid() LIMIT 1
+    )
   )
   WITH CHECK (
     get_my_role() = 'senior_sales'
     AND assigned_team = 'Senior Sales Team'
+    AND assigned_user_id = (
+      SELECT id FROM profiles WHERE auth_user_id = auth.uid() LIMIT 1
+    )
   );
 
 DROP POLICY IF EXISTS "Admin/manager can insert customers" ON customers;
