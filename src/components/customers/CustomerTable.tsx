@@ -120,6 +120,17 @@ interface ISPOption {
   columns?: ISPColumn[];
 }
 
+function resolveIspId(
+  candidate: string,
+  isps: ISPOption[],
+  fallback: string
+): string {
+  if (!candidate) return fallback;
+  const normalized = candidate.trim().toLowerCase();
+  const match = isps.find((isp) => isp.id.toLowerCase() === normalized);
+  return match?.id ?? fallback;
+}
+
 interface Props {
   customers: CustomerRow[];
   isps: ISPOption[];
@@ -182,12 +193,15 @@ export default function CustomerTable({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const fallbackIspId = defaultIspId || isps[0]?.id || "";
+
   const handleIspChange = (ispId: string) => {
-    setIspFilter(ispId);
+    const resolved = resolveIspId(ispId, isps, fallbackIspId);
+    setIspFilter(resolved);
     if (!syncUrlOnIspChange) return;
 
     const params = new URLSearchParams(searchParams.toString());
-    if (ispId) params.set("isp", ispId);
+    if (resolved) params.set("isp", resolved);
     else params.delete("isp");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname);
@@ -196,23 +210,26 @@ export default function CustomerTable({
   useEffect(() => {
     if (!syncUrlOnIspChange) return;
     const ispFromUrl = searchParams.get("isp") ?? "";
-    if (ispFromUrl) {
-      setIspFilter(ispFromUrl);
-      return;
+    const resolved = resolveIspId(ispFromUrl, isps, fallbackIspId);
+    setIspFilter(resolved);
+    if (ispFromUrl && resolved !== ispFromUrl && resolved) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("isp", resolved);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    } else if (!ispFromUrl && requireIspSelection && fallbackIspId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("isp", fallbackIspId);
+      router.replace(`${pathname}?${params.toString()}`);
     }
-    if (requireIspSelection && isps[0]) {
-      handleIspChange(isps[0].id);
-    }
-  }, [searchParams, syncUrlOnIspChange, requireIspSelection, isps]);
+  }, [searchParams, syncUrlOnIspChange, requireIspSelection, isps, fallbackIspId, pathname, router]);
 
   useEffect(() => {
     if (syncUrlOnIspChange) return;
-    if (defaultIspId) {
-      setIspFilter(defaultIspId);
-    } else if (requireIspSelection && isps[0]) {
-      setIspFilter(isps[0].id);
+    if (fallbackIspId) {
+      setIspFilter(resolveIspId(defaultIspId, isps, fallbackIspId));
     }
-  }, [defaultIspId, syncUrlOnIspChange, requireIspSelection, isps]);
+  }, [defaultIspId, syncUrlOnIspChange, fallbackIspId, isps]);
 
   const selectedIsp = isps.find((isp) => isp.id === ispFilter);
   const activeIspColumns =
@@ -229,8 +246,19 @@ export default function CustomerTable({
       });
       if (!haystack.includes(term)) return false;
     }
-    if (ispFilter && c.isp_id !== ispFilter) return false;
-    if (teamFilter && c.assigned_team !== teamFilter) return false;
+    if (
+      ispFilter &&
+      c.isp_id?.toLowerCase() !== ispFilter.toLowerCase()
+    ) {
+      return false;
+    }
+    if (
+      showTeamFilter &&
+      teamFilter &&
+      c.assigned_team !== teamFilter
+    ) {
+      return false;
+    }
     if (stageFilter && c.workflow_stage !== stageFilter) return false;
     if (transferFilter && c.transfer_status !== transferFilter) return false;
     if (assigneeFilter === "mine" && currentUserId) {
