@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogTitle,
@@ -35,6 +36,7 @@ export default function CallLogDialog({
   emphasizeReschedule = false,
   defaultCallResult = "",
 }: Props) {
+  const router = useRouter();
   const [callResult, setCallResult] = useState(defaultCallResult);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,6 +64,10 @@ export default function CallLogDialog({
         return;
       }
       onClose();
+      if (result && "redirectTo" in result && result.redirectTo) {
+        router.push(result.redirectTo);
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to log call");
     } finally {

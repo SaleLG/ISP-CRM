@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, requireRole } from "@/lib/auth";
+import { normalizeRole } from "@/lib/constants";
 import {
   getNextAttemptStage,
   getOutcomeFromCallResult,
@@ -162,8 +163,9 @@ export async function logCall(
 
   const newAttemptNumber = customer.call_attempt_number + 1;
   const team = customer.assigned_team;
+  const role = normalizeRole(profile.role);
 
-  await supabase.from("call_logs").insert({
+  const { error: callLogError } = await supabase.from("call_logs").insert({
     customer_id: customerId,
     user_id: profile.id,
     team,
@@ -175,6 +177,8 @@ export async function logCall(
       ? options.seniorAssistedUserId
       : null,
   });
+
+  if (callLogError) throw new Error(callLogError.message);
 
   const updates: Record<string, unknown> = {
     call_attempt_number: newAttemptNumber,
@@ -207,6 +211,9 @@ export async function logCall(
     updates.assigned_user_id = null;
   }
 
+  const escalatedToSenior =
+    team === "Junior Sales Team" && shouldEscalateToSenior(callResult);
+
   const moveToRecycleHold =
     team === "Junior Sales Team" &&
     shouldMoveToRecycleHold(newAttemptNumber, callResult);
@@ -219,7 +226,9 @@ export async function logCall(
     updates.assigned_user_id = null;
   }
 
-  const admin = moveToRecycleHold ? createAdminClient() : null;
+  const needsAdminUpdate =
+    role === "junior_sales" && (moveToRecycleHold || escalatedToSenior);
+  const admin = needsAdminUpdate ? createAdminClient() : null;
   const db = admin ?? supabase;
   const { error } = await db
     .from("customers")
@@ -247,7 +256,7 @@ export async function logCall(
   });
 
   if (team === "Junior Sales Team" && shouldEscalateToSenior(callResult)) {
-    await supabase.from("activities").insert({
+    await (admin ?? supabase).from("activities").insert({
       customer_id: customerId,
       user_id: profile.id,
       activity_type: "team_transfer",
@@ -268,14 +277,24 @@ export async function logCall(
     });
   }
 
-  revalidatePath(`/customers/${customerId}`);
+  const leftJuniorView =
+    role === "junior_sales" && (escalatedToSenior || moveToRecycleHold);
+
   revalidatePath("/junior-sales");
   revalidatePath("/senior-sales");
   revalidatePath("/recycle-hold");
   revalidatePath("/dashboard");
   revalidatePath("/alerts");
 
-  return { success: true, attemptNumber: newAttemptNumber };
+  if (!leftJuniorView) {
+    revalidatePath(`/customers/${customerId}`);
+  }
+
+  return {
+    success: true,
+    attemptNumber: newAttemptNumber,
+    redirectTo: leftJuniorView ? "/junior-sales" : undefined,
+  };
 }
 
 export async function quickRescheduleInstall(
@@ -291,11 +310,11 @@ export async function quickRescheduleInstall(
   );
   if ("error" in result && result.error) return result;
 
-  if (followUpDate) {
+  if (followUpDate && !result.redirectTo) {
     await updateCustomer(customerId, { follow_up_date: followUpDate });
   }
 
-  return { success: true };
+  return result;
 }
 
 export async function recycleToJunior(customerId: string) {

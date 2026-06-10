@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ export default function CustomerDetailActions({
   profile,
   seniorTeamMembers = [],
 }: Props) {
+  const router = useRouter();
   const [note, setNote] = useState("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
@@ -85,11 +87,15 @@ export default function CustomerDetailActions({
   const handleQuickReschedule = async () => {
     setQuickLoading(true);
     try {
-      await quickRescheduleInstall(
+      const result = await quickRescheduleInstall(
         customer.id,
         "Install appointment rescheduled",
         followUpDate || undefined
       );
+      if (result && "redirectTo" in result && result.redirectTo) {
+        router.push(result.redirectTo);
+        router.refresh();
+      }
     } finally {
       setQuickLoading(false);
     }
