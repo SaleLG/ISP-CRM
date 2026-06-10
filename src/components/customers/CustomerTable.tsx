@@ -80,6 +80,17 @@ interface FilterSelectProps {
   minWidth?: number;
 }
 
+function formatAssigneeLabel(row: CustomerRow): string | null {
+  if (
+    row.assigned_team === "Recycle Hold" ||
+    row.assigned_team === "Junior Sales Team"
+  ) {
+    return null;
+  }
+  if (!row.assigned_user_id) return "Unassigned";
+  return row.profiles?.full_name || "Unknown";
+}
+
 function FilterSelect({
   label,
   value,
@@ -137,7 +148,6 @@ interface Props {
   ispColumns?: ISPColumn[];
   showTeamFilter?: boolean;
   defaultTeam?: string;
-  editable?: boolean;
   allowBulkDelete?: boolean;
   showAssigneeFilter?: boolean;
   showAssigneeColumn?: boolean;
@@ -158,7 +168,6 @@ export default function CustomerTable({
   isps,
   showTeamFilter = true,
   defaultTeam,
-  editable = false,
   allowBulkDelete = false,
   showAssigneeFilter = false,
   showAssigneeColumn = false,
@@ -317,7 +326,12 @@ export default function CustomerTable({
   };
 
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
-    await updateCustomer(id, { [field]: value || null });
+    try {
+      await updateCustomer(id, { [field]: value || null });
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update customer");
+    }
   };
 
   const handleDeleteSelected = async () => {
@@ -348,29 +362,6 @@ export default function CustomerTable({
     "& .MuiInputBase-root": { fontSize: "0.8125rem" },
     "& .MuiSelect-select": { py: 0.75 },
   } as const;
-
-  const renderInlineSelect = (
-    params: GridRenderCellParams,
-    field: string,
-    options: readonly string[]
-  ) => (
-    <Box sx={cellSelectWrapperSx}>
-      <TextField
-        select
-        size="small"
-        fullWidth
-        value={params.value ?? ""}
-        onChange={(e) => handleInlineUpdate(params.row.id, field, e.target.value)}
-        sx={cellSelectFieldSx}
-      >
-        {options.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
-    </Box>
-  );
 
   const isMasterCrm = ispSelectorVariant === "tabs" && requireIspSelection;
   const hasIspColumns = activeIspColumns.length > 0;
@@ -475,34 +466,49 @@ export default function CustomerTable({
             headerName: "Assigned To",
             width: 170,
             minWidth: 160,
-            renderCell: (params: GridRenderCellParams) =>
-              allowAssign && teamMembers.length > 0 ? (
-                <Box sx={cellSelectWrapperSx}>
-                  <TextField
-                    select
-                    size="small"
-                    fullWidth
-                    value={params.value || ""}
-                    onChange={(e) =>
-                      handleInlineUpdate(
-                        params.row.id,
-                        "assigned_user_id",
-                        e.target.value
-                      )
-                    }
-                    sx={cellSelectFieldSx}
-                  >
-                    <MenuItem value="">Unassigned</MenuItem>
-                    {teamMembers.map((u) => (
-                      <MenuItem key={u.id} value={u.id}>
-                        {u.full_name || "Unknown"}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Box>
-              ) : (
-                params.row.profiles?.full_name || "Unassigned"
-              ),
+            renderCell: (params: GridRenderCellParams) => {
+              const label = formatAssigneeLabel(params.row as CustomerRow);
+              if (
+                allowAssign &&
+                teamMembers.length > 0 &&
+                params.row.assigned_team === "Senior Sales Team"
+              ) {
+                return (
+                  <Box sx={cellSelectWrapperSx}>
+                    <TextField
+                      select
+                      size="small"
+                      fullWidth
+                      value={params.value || ""}
+                      onChange={(e) =>
+                        handleInlineUpdate(
+                          params.row.id,
+                          "assigned_user_id",
+                          e.target.value
+                        )
+                      }
+                      sx={cellSelectFieldSx}
+                      SelectProps={{
+                        displayEmpty: true,
+                        renderValue: (selected) =>
+                          selected
+                            ? teamMembers.find((u) => u.id === selected)
+                                ?.full_name || "Unknown"
+                            : "Assign rep…",
+                      }}
+                    >
+                      <MenuItem value="">Unassigned</MenuItem>
+                      {teamMembers.map((u) => (
+                        <MenuItem key={u.id} value={u.id}>
+                          {u.full_name || "Unknown"}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Box>
+                );
+              }
+              return label ?? "—";
+            },
           } as GridColDef,
         ]
       : []),
@@ -511,31 +517,26 @@ export default function CustomerTable({
       headerName: "Team",
       width: 195,
       minWidth: 185,
-      renderCell: editable
-        ? (params) => renderInlineSelect(params, "assigned_team", TEAMS)
-        : (params) => (
-            <Chip
-              label={normalizeTeamLabel(params.value)}
-              size="small"
-              variant="outlined"
-            />
-          ),
+      renderCell: (params) => (
+        <Chip
+          label={normalizeTeamLabel(params.value)}
+          size="small"
+          variant="outlined"
+        />
+      ),
     },
     {
       field: "workflow_stage",
       headerName: "Stage",
       width: 175,
       minWidth: 165,
-      renderCell: (params) =>
-        editable ? (
-          renderInlineSelect(params, "workflow_stage", WORKFLOW_STAGES)
-        ) : (
-          <Chip
-            label={normalizeStageLabel(params.value)}
-            size="small"
-            variant="outlined"
-          />
-        ),
+      renderCell: (params) => (
+        <Chip
+          label={normalizeStageLabel(params.value)}
+          size="small"
+          variant="outlined"
+        />
+      ),
     },
     {
       field: "call_attempt_number",

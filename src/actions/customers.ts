@@ -76,9 +76,59 @@ export async function updateCustomer(
 
   if (!existing) throw new Error("Customer not found");
 
+  const role = normalizeRole(profile.role);
+  const payload = { ...updates };
+
+  const workflowLockedFields = [
+    "assigned_team",
+    "workflow_stage",
+    "transfer_status",
+    "outcome",
+    "call_attempt_number",
+  ] as const;
+
+  for (const field of workflowLockedFields) {
+    if (payload[field] !== undefined && payload[field] !== existing[field]) {
+      if (role !== "admin") {
+        throw new Error(
+          "Team, stage, transfer status, and outcome are set automatically by the workflow"
+        );
+      }
+    }
+  }
+
+  if (payload.assigned_user_id !== undefined) {
+    if (role !== "admin" && role !== "manager") {
+      throw new Error("Only managers can assign senior sales reps");
+    }
+    if (existing.assigned_team === "Recycle Hold") {
+      throw new Error("Recycle Hold leads are not assigned to a sales rep");
+    }
+    if (existing.assigned_team !== "Senior Sales Team") {
+      throw new Error("Senior reps can only be assigned to Senior Sales Team leads");
+    }
+    const assigneeId = payload.assigned_user_id as string | null;
+    if (assigneeId) {
+      const { data: assignee } = await supabase
+        .from("profiles")
+        .select("id, role, is_active")
+        .eq("id", assigneeId)
+        .single();
+      if (!assignee || normalizeRole(assignee.role) !== "senior_sales") {
+        throw new Error("Selected user is not an active senior sales rep");
+      }
+      if (!assignee.is_active) {
+        throw new Error("Selected senior sales rep is not active");
+      }
+      if (existing.transfer_status === "Senior Review") {
+        payload.transfer_status = "None";
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("customers")
-    .update(updates)
+    .update(payload)
     .eq("id", id)
     .select()
     .single();
@@ -97,13 +147,13 @@ export async function updateCustomer(
   ];
 
   for (const field of trackFields) {
-    if (updates[field] !== undefined && updates[field] !== existing[field]) {
+    if (payload[field] !== undefined && payload[field] !== existing[field]) {
       let oldVal = String(existing[field] ?? "");
-      let newVal = String(updates[field] ?? "");
+      let newVal = String(payload[field] ?? "");
       let description = `Updated ${field}`;
 
       if (field === "assigned_user_id") {
-        const ids = [existing[field], updates[field]].filter(Boolean) as string[];
+        const ids = [existing[field], payload[field]].filter(Boolean) as string[];
         if (ids.length > 0) {
           const { data: names } = await supabase
             .from("profiles")
@@ -112,7 +162,7 @@ export async function updateCustomer(
           const label = (uid: string | null) =>
             names?.find((p) => p.id === uid)?.full_name || "Unassigned";
           oldVal = label(existing[field]);
-          newVal = label(updates[field] as string | null);
+          newVal = label(payload[field] as string | null);
         } else {
           oldVal = "Unassigned";
           newVal = "Unassigned";

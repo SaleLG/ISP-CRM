@@ -56,6 +56,14 @@ export default async function SeniorSalesPage({
           : "Escalated callback and reschedule leads from Junior Sales. Assign available senior reps to each lead. Select an ISP tab to view that ISP's customers."}
       </Typography>
 
+      {isManager && customers.some((c) => c.assigned_team === "Senior Sales Team" && !c.assigned_user_id) && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Unassigned escalations need a senior rep. Use the{" "}
+          <strong>Assigned To</strong> column to assign each lead, or filter by{" "}
+          <strong>Unassigned</strong>.
+        </Alert>
+      )}
+
       {isps.length === 0 ? (
         <Alert severity="info">
           No ISPs configured yet. Contact an admin to set up ISPs and columns.

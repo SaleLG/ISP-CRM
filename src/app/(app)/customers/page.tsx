@@ -4,6 +4,7 @@ import { Typography, Box, Skeleton, Alert, Button } from "@mui/material";
 import CustomerTable from "@/components/customers/CustomerTable";
 import { getCustomers } from "@/actions/customers";
 import { getISPsWithCounts } from "@/actions/isps";
+import { getTeamMembers } from "@/actions/team";
 import { requireRole } from "@/lib/auth";
 
 function TableSkeleton() {
@@ -20,11 +21,12 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<{ isp?: string }>;
 }) {
-  await requireRole(["admin", "manager"]);
+  const profile = await requireRole(["admin", "manager"]);
   const { isp } = await searchParams;
-  const [customers, isps] = await Promise.all([
+  const [customers, isps, seniorTeamMembers] = await Promise.all([
     getCustomers(),
     getISPsWithCounts(),
+    getTeamMembers("Senior Sales Team"),
   ]);
 
   const selectedIspId =
@@ -67,8 +69,12 @@ export default async function CustomersPage({
             customers={customers}
             isps={isps}
             ispColumns={selectedIsp?.columns ?? []}
-            editable
             allowBulkDelete
+            showAssigneeColumn
+            showAssigneeFilter
+            allowAssign
+            teamMembers={seniorTeamMembers}
+            currentUserId={profile.id}
             defaultIspId={selectedIspId}
             ispSelectorVariant="tabs"
             syncUrlOnIspChange

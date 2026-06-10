@@ -17,24 +17,17 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import SmsIcon from "@mui/icons-material/Sms";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import {
-  WORKFLOW_STAGES,
-  TRANSFER_STATUSES,
-  ALERT_TYPES,
-  ALERT_STATUSES,
-  OUTCOMES,
-  TEAMS,
-} from "@/lib/constants";
-import {
   canEditSeniorAssignment,
-  canEditWorkflowFields,
   canLogCall,
   canUseSeniorSalesActions,
   canUseRecycleHoldActions,
+  isManager,
 } from "@/lib/customerPermissions";
 import {
   getInteractionLabel,
   getInteractionResults,
   usesJuniorTextOnly,
+  canRecycleToJunior,
 } from "@/lib/workflow";
 import {
   updateCustomer,
@@ -43,7 +36,6 @@ import {
 } from "@/actions/customers";
 import CallLogDialog from "./CallLogDialog";
 import RecycleToJuniorButton from "./RecycleToJuniorButton";
-import { canRecycleToJunior } from "@/lib/workflow";
 import type { Customer, Profile } from "@/lib/types";
 
 interface Props {
@@ -66,7 +58,11 @@ export default function CustomerDetailActions({
   );
   const [quickLoading, setQuickLoading] = useState(false);
 
-  const showWorkflowFields = canEditWorkflowFields(profile);
+  const manager = isManager(profile);
+  const needsSeniorAssignment =
+    manager &&
+    customer.assigned_team === "Senior Sales Team" &&
+    !customer.assigned_user_id;
   const showSeniorAssign =
     canEditSeniorAssignment(customer, profile) &&
     seniorTeamMembers.length > 0;
@@ -84,10 +80,14 @@ export default function CustomerDetailActions({
 
   const showActionButtons =
     showLogCall || showSeniorActions || showRecycleToJunior;
-  const showManagementFields = showSeniorAssign || showWorkflowFields;
 
   const handleUpdate = async (field: string, value: string) => {
-    await updateCustomer(customer.id, { [field]: value || null });
+    try {
+      await updateCustomer(customer.id, { [field]: value || null });
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update customer");
+    }
   };
 
   const handleAddNote = async () => {
@@ -113,11 +113,6 @@ export default function CustomerDetailActions({
     }
   };
 
-  const workflowSelectProps = {
-    size: "small" as const,
-    fullWidth: true,
-  };
-
   return (
     <Card>
       <CardContent>
@@ -126,6 +121,45 @@ export default function CustomerDetailActions({
         </Typography>
 
         <Stack spacing={2}>
+          {needsSeniorAssignment && (
+            <Alert severity="warning">
+              This lead is in <strong>Senior Review</strong> and needs a senior
+              sales rep assigned below.
+            </Alert>
+          )}
+
+          {showSeniorAssign && (
+            <TextField
+              select
+              label="Assigned Senior Sales Rep"
+              value={customer.assigned_user_id || ""}
+              onChange={(e) => handleUpdate("assigned_user_id", e.target.value)}
+              size="small"
+              fullWidth
+              helperText="Assign the senior rep who will call this customer"
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {seniorTeamMembers.map((u) => (
+                <MenuItem key={u.id} value={u.id}>
+                  {u.full_name || "Unknown"}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          {manager &&
+            customer.assigned_team === "Senior Sales Team" &&
+            seniorTeamMembers.length === 0 && (
+              <Alert severity="info">
+                Add active senior sales users on the Users page before assigning
+                leads.
+              </Alert>
+            )}
+
+          {showSeniorAssign && (showActionButtons || showRecycleHoldActions) && (
+            <Divider />
+          )}
+
           {showSeniorActions && (
             <Alert severity="info" sx={{ py: 0.5 }}>
               Follow up on callback or reschedule request and close the lead
@@ -181,120 +215,7 @@ export default function CustomerDetailActions({
             </Alert>
           )}
 
-          {showActionButtons && showManagementFields && <Divider />}
-
-          {showSeniorAssign && (
-            <TextField
-              select
-              label="Assigned Senior Sales Rep"
-              value={customer.assigned_user_id || ""}
-              onChange={(e) => handleUpdate("assigned_user_id", e.target.value)}
-              size="small"
-              fullWidth
-              helperText="Assign the senior rep handling this callback or reschedule"
-            >
-              <MenuItem value="">Unassigned</MenuItem>
-              {seniorTeamMembers.map((u) => (
-                <MenuItem key={u.id} value={u.id}>
-                  {u.full_name || "Unknown"}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-
-          {showWorkflowFields && (
-            <>
-              <TextField
-                select
-                label="Assigned Team"
-                value={customer.assigned_team}
-                onChange={(e) => handleUpdate("assigned_team", e.target.value)}
-                {...workflowSelectProps}
-              >
-                {TEAMS.map((t) => (
-                  <MenuItem key={t} value={t}>
-                    {t}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Workflow Stage"
-                value={customer.workflow_stage}
-                onChange={(e) =>
-                  handleUpdate("workflow_stage", e.target.value)
-                }
-                {...workflowSelectProps}
-              >
-                {WORKFLOW_STAGES.map((s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Transfer Status"
-                value={customer.transfer_status}
-                onChange={(e) =>
-                  handleUpdate("transfer_status", e.target.value)
-                }
-                {...workflowSelectProps}
-              >
-                {TRANSFER_STATUSES.map((s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Alert Type"
-                value={customer.alert_type}
-                onChange={(e) => handleUpdate("alert_type", e.target.value)}
-                {...workflowSelectProps}
-              >
-                {ALERT_TYPES.map((a) => (
-                  <MenuItem key={a} value={a}>
-                    {a}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Alert Status"
-                value={customer.alert_status}
-                onChange={(e) => handleUpdate("alert_status", e.target.value)}
-                {...workflowSelectProps}
-              >
-                {ALERT_STATUSES.map((a) => (
-                  <MenuItem key={a} value={a}>
-                    {a}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Outcome"
-                value={customer.outcome}
-                onChange={(e) => handleUpdate("outcome", e.target.value)}
-                {...workflowSelectProps}
-              >
-                {OUTCOMES.map((o) => (
-                  <MenuItem key={o} value={o}>
-                    {o}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </>
-          )}
-
-          {showLogCall && (showActionButtons || showManagementFields) && (
+          {showLogCall && (showActionButtons || showSeniorAssign) && (
             <Divider />
           )}
 
