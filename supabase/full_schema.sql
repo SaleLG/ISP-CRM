@@ -84,9 +84,10 @@ CREATE TABLE IF NOT EXISTS call_logs (
   team TEXT,
   attempt_number INT,
   call_result TEXT CHECK (call_result IN (
-    'No Answer', 'Left Voicemail', 'Customer Answered', 'Callback Requested',
-    'Rescheduled', 'New Account Created', 'Not Interested', 'Wrong Number',
-    'Do Not Call', 'ISP Complaint', 'Price Approval Needed'
+    'No Answer', 'Left Voicemail', 'Customer Answered',
+    'No Text Reply', 'Simple Reschedule', 'Call Requested', 'Reschedule by Phone',
+    'Callback Requested', 'Rescheduled', 'New Account Created',
+    'Not Interested', 'Wrong Number', 'Do Not Call', 'ISP Complaint', 'Price Approval Needed'
   )),
   notes TEXT,
   is_three_way BOOLEAN DEFAULT false,

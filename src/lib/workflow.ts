@@ -1,7 +1,43 @@
 import type { Customer } from "./types";
-import { RECYCLE_HOLD_DAYS } from "./constants";
+import { RECYCLE_HOLD_DAYS, JUNIOR_TEXT_RESULTS, CALL_RESULTS } from "./constants";
+import type { Role } from "./constants";
 
-const ESCALATION_CALL_RESULTS = ["Callback Requested", "Rescheduled"];
+/** Escalate to Senior Sales (manager assigns a senior rep). */
+const SENIOR_ESCALATION_RESULTS = [
+  "Callback Requested",
+  "Call Requested",
+  "Reschedule by Phone",
+  "Rescheduled",
+  "New Account Created",
+  "ISP Complaint",
+  "Price Approval Needed",
+] as const;
+
+const NO_REPLY_RESULTS = ["No Answer", "Left Voicemail", "No Text Reply"] as const;
+
+export function usesJuniorTextOnly(
+  assignedTeam: string,
+  role: Role | string | null | undefined
+): boolean {
+  return assignedTeam === "Junior Sales Team";
+}
+
+export function getInteractionResults(
+  assignedTeam: string,
+  role: Role | string | null | undefined
+): readonly string[] {
+  if (usesJuniorTextOnly(assignedTeam, role)) {
+    return JUNIOR_TEXT_RESULTS;
+  }
+  return CALL_RESULTS;
+}
+
+export function getInteractionLabel(
+  assignedTeam: string,
+  role: Role | string | null | undefined
+): "text" | "call" {
+  return usesJuniorTextOnly(assignedTeam, role) ? "text" : "call";
+}
 
 export function getNextAttemptStage(currentAttempts: number): string {
   const next = currentAttempts + 1;
@@ -12,15 +48,21 @@ export function getNextAttemptStage(currentAttempts: number): string {
 }
 
 export function shouldEscalateToSenior(callResult: string): boolean {
-  return ESCALATION_CALL_RESULTS.includes(callResult);
+  if (callResult === "Simple Reschedule") return false;
+  return (SENIOR_ESCALATION_RESULTS as readonly string[]).includes(callResult);
+}
+
+export function isNoReplyResult(callResult: string): boolean {
+  return (NO_REPLY_RESULTS as readonly string[]).includes(callResult);
 }
 
 export function shouldMoveToRecycleHold(
   callAttemptNumber: number,
   callResult: string
 ): boolean {
+  if (shouldEscalateToSenior(callResult)) return false;
   if (getWorkflowStageFromCallResult(callResult)) return false;
-  return callAttemptNumber >= 3;
+  return callAttemptNumber >= 3 && isNoReplyResult(callResult);
 }
 
 export function getRecycleFollowUpDate(fromDate = new Date()): string {
@@ -37,6 +79,7 @@ export function isRecycleReady(followUpDate: string | null | undefined): boolean
 
 export function getOutcomeFromCallResult(callResult: string): string | null {
   switch (callResult) {
+    case "Simple Reschedule":
     case "Rescheduled":
       return "Rescheduled";
     case "New Account Created":
@@ -55,7 +98,11 @@ export function getOutcomeFromCallResult(callResult: string): string | null {
 export function getWorkflowStageFromCallResult(callResult: string): string | null {
   switch (callResult) {
     case "Callback Requested":
+    case "Call Requested":
       return "Callback Requested";
+    case "Reschedule by Phone":
+      return "Callback Requested";
+    case "Simple Reschedule":
     case "Rescheduled":
       return "Rescheduled";
     case "New Account Created":
@@ -92,4 +139,23 @@ export function getAlertFromCallResult(callResult: string): {
 
 export function canRecycleToJunior(customer: Customer): boolean {
   return customer.assigned_team === "Recycle Hold";
+}
+
+export function getJuniorTextResultDescription(result: string): string | undefined {
+  switch (result) {
+    case "No Text Reply":
+      return "No response to text — counts as outreach attempt";
+    case "Simple Reschedule":
+      return "Customer confirmed a new date by text — stays with Junior Sales";
+    case "Call Requested":
+      return "Customer wants a phone call — escalates to Senior Sales";
+    case "Reschedule by Phone":
+      return "Customer needs a call to reschedule — escalates to Senior Sales";
+    case "ISP Complaint":
+      return "Escalates to an assigned Senior Sales rep";
+    case "Price Approval Needed":
+      return "Escalates to an assigned Senior Sales rep";
+    default:
+      return undefined;
+  }
 }

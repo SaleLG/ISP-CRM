@@ -14,8 +14,8 @@ import {
   Alert,
   Typography,
 } from "@mui/material";
-import { CALL_RESULTS } from "@/lib/constants";
 import { logCall } from "@/actions/customers";
+import { getJuniorTextResultDescription } from "@/lib/workflow";
 
 interface Props {
   open: boolean;
@@ -23,6 +23,8 @@ interface Props {
   customerId: string;
   customerName: string;
   currentAttempts: number;
+  interactionMode?: "text" | "call";
+  resultOptions: readonly string[];
   emphasizeReschedule?: boolean;
   defaultCallResult?: string;
 }
@@ -33,6 +35,8 @@ export default function CallLogDialog({
   customerId,
   customerName,
   currentAttempts,
+  interactionMode = "call",
+  resultOptions,
   emphasizeReschedule = false,
   defaultCallResult = "",
 }: Props) {
@@ -41,6 +45,7 @@ export default function CallLogDialog({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const isTextMode = interactionMode === "text";
 
   useEffect(() => {
     if (open) {
@@ -52,7 +57,7 @@ export default function CallLogDialog({
 
   const handleSubmit = async () => {
     if (!callResult) {
-      setError("Please select a call result");
+      setError(`Please select a ${isTextMode ? "text" : "call"} result`);
       return;
     }
     setLoading(true);
@@ -69,40 +74,65 @@ export default function CallLogDialog({
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to log call");
+      setError(
+        err instanceof Error
+          ? err.message
+          : `Failed to log ${isTextMode ? "text" : "call"}`
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const resultLabel = (result: string) => {
+    if (result === "Simple Reschedule") {
+      return "Simple Reschedule — confirmed by text";
+    }
+    if (result === "Rescheduled" && emphasizeReschedule) {
+      return "Rescheduled — Install appointment set";
+    }
+    return result;
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Log Call — {customerName} (Attempt #{currentAttempts + 1})
+        Log {isTextMode ? "Text" : "Call"} — {customerName} (Attempt #
+        {currentAttempts + 1})
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {emphasizeReschedule && (
+          {isTextMode && (
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              Junior Sales is text-only. Call requests, phone reschedules,
+              complaints, and price approvals escalate to Senior Sales for a
+              manager to assign a rep.
+            </Alert>
+          )}
+          {emphasizeReschedule && !isTextMode && (
             <Alert severity="info" sx={{ py: 0.5 }}>
               Primary goal: confirm reschedule or complete the callback.
             </Alert>
           )}
           <TextField
             select
-            label="Call Result"
+            label={isTextMode ? "Text Result" : "Call Result"}
             value={callResult}
             onChange={(e) => setCallResult(e.target.value)}
             fullWidth
             required
           >
-            {CALL_RESULTS.map((r) => (
+            {resultOptions.map((r) => (
               <MenuItem key={r} value={r}>
-                {r === "Rescheduled" && emphasizeReschedule
-                  ? "Rescheduled — Install appointment set"
-                  : r}
+                {resultLabel(r)}
               </MenuItem>
             ))}
           </TextField>
+          {isTextMode && callResult && getJuniorTextResultDescription(callResult) && (
+            <Typography variant="caption" color="text.secondary">
+              {getJuniorTextResultDescription(callResult)}
+            </Typography>
+          )}
           <TextField
             label="Notes"
             value={notes}
@@ -113,7 +143,9 @@ export default function CallLogDialog({
             placeholder={
               emphasizeReschedule
                 ? "e.g. New install date/time, customer availability..."
-                : undefined
+                : isTextMode
+                  ? "e.g. Text sent, customer reply, new install date..."
+                  : undefined
             }
           />
           {error && (
@@ -126,7 +158,7 @@ export default function CallLogDialog({
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={loading}>
-          {loading ? "Saving..." : "Log Call"}
+          {loading ? "Saving..." : isTextMode ? "Log Text" : "Log Call"}
         </Button>
       </DialogActions>
     </Dialog>

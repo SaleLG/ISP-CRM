@@ -36,11 +36,13 @@ export default async function JuniorSalesPage({
         Junior Sales Team
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Work new and recycled leads through Attempt 1, 2, and 3. When a customer
-        requests a callback or reschedule, the lead escalates to Senior Sales.
-        After 3 attempts with no reply, leads automatically move to the manager&apos;s
-        No Reply — Recycle basket for 30 days (they leave this view). Select an
-        ISP tab to view that ISP&apos;s customers.
+        Text-only outreach for new and recycled leads through Attempt 1, 2, and
+        3. Simple reschedules confirmed by text stay here. If the customer wants a
+        call, needs a phone reschedule, has a complaint, or needs price
+        approval, the lead escalates to Senior Sales for a manager to assign a
+        rep. After 3 text attempts with no reply, leads move to the manager&apos;s
+        No Reply — Recycle basket for 30 days. Select an ISP tab to view
+        customers.
       </Typography>
 
       {isps.length === 0 ? (

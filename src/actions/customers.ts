@@ -12,6 +12,8 @@ import {
   shouldEscalateToSenior,
   shouldMoveToRecycleHold,
   getRecycleFollowUpDate,
+  getInteractionResults,
+  getInteractionLabel,
 } from "@/lib/workflow";
 import type { CustomerFilters, LogCallOptions } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -157,13 +159,21 @@ export async function logCall(
 
   if (!customer) throw new Error("Customer not found");
 
+  const team = customer.assigned_team;
+  const role = normalizeRole(profile.role);
+
   if (options.isThreeWay && !options.seniorAssistedUserId) {
     return { error: "Please select the senior who assisted on the 3-way call" };
   }
 
+  const allowedResults = getInteractionResults(team, role);
+  if (!allowedResults.includes(callResult)) {
+    return { error: "Invalid interaction result for this team" };
+  }
+
+  const interactionLabel = getInteractionLabel(team, role);
+
   const newAttemptNumber = customer.call_attempt_number + 1;
-  const team = customer.assigned_team;
-  const role = normalizeRole(profile.role);
 
   const { error: callLogError } = await supabase.from("call_logs").insert({
     customer_id: customerId,
@@ -237,7 +247,7 @@ export async function logCall(
 
   if (error) throw new Error(error.message);
 
-  let activityDesc = `Logged call attempt #${newAttemptNumber}: ${callResult}`;
+  let activityDesc = `Logged ${interactionLabel} attempt #${newAttemptNumber}: ${callResult}`;
   if (options.isThreeWay && options.seniorAssistedUserId) {
     const { data: senior } = await supabase
       .from("profiles")

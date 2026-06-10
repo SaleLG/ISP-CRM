@@ -14,6 +14,7 @@ import {
   Alert,
 } from "@mui/material";
 import PhoneIcon from "@mui/icons-material/Phone";
+import SmsIcon from "@mui/icons-material/Sms";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import {
   WORKFLOW_STAGES,
@@ -30,6 +31,11 @@ import {
   canUseSeniorSalesActions,
   canUseRecycleHoldActions,
 } from "@/lib/customerPermissions";
+import {
+  getInteractionLabel,
+  getInteractionResults,
+  usesJuniorTextOnly,
+} from "@/lib/workflow";
 import {
   updateCustomer,
   addNote,
@@ -69,6 +75,12 @@ export default function CustomerDetailActions({
   const showRecycleHoldActions = canUseRecycleHoldActions(customer, profile);
   const showRecycleToJunior =
     showRecycleHoldActions && canRecycleToJunior(customer);
+  const isJuniorText = usesJuniorTextOnly(customer.assigned_team, profile.role);
+  const interactionMode = getInteractionLabel(customer.assigned_team, profile.role);
+  const interactionResults = getInteractionResults(
+    customer.assigned_team,
+    profile.role
+  );
 
   const showActionButtons =
     showLogCall || showSeniorActions || showRecycleToJunior;
@@ -124,11 +136,11 @@ export default function CustomerDetailActions({
           {showLogCall && (
             <Button
               variant="contained"
-              startIcon={<PhoneIcon />}
+              startIcon={isJuniorText ? <SmsIcon /> : <PhoneIcon />}
               onClick={() => setCallDialogOpen(true)}
               fullWidth
             >
-              Log Call
+              {isJuniorText ? "Log Text" : "Log Call"}
             </Button>
           )}
 
@@ -330,6 +342,8 @@ export default function CustomerDetailActions({
             customerId={customer.id}
             customerName={customer.full_name || "Customer"}
             currentAttempts={customer.call_attempt_number}
+            interactionMode={interactionMode}
+            resultOptions={interactionResults}
             emphasizeReschedule={showSeniorActions}
           />
           <CallLogDialog
@@ -338,6 +352,8 @@ export default function CustomerDetailActions({
             customerId={customer.id}
             customerName={customer.full_name || "Customer"}
             currentAttempts={customer.call_attempt_number}
+            interactionMode={interactionMode}
+            resultOptions={interactionResults}
             emphasizeReschedule
             defaultCallResult="Rescheduled"
           />

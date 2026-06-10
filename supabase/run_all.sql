@@ -91,9 +91,10 @@ CREATE TABLE IF NOT EXISTS call_logs (
   team TEXT,
   attempt_number INT,
   call_result TEXT CHECK (call_result IN (
-    'No Answer', 'Left Voicemail', 'Customer Answered', 'Callback Requested',
-    'Rescheduled', 'New Account Created', 'Not Interested', 'Wrong Number',
-    'Do Not Call', 'ISP Complaint', 'Price Approval Needed'
+    'No Answer', 'Left Voicemail', 'Customer Answered',
+    'No Text Reply', 'Simple Reschedule', 'Call Requested', 'Reschedule by Phone',
+    'Callback Requested', 'Rescheduled', 'New Account Created',
+    'Not Interested', 'Wrong Number', 'Do Not Call', 'ISP Complaint', 'Price Approval Needed'
   )),
   notes TEXT,
   is_three_way BOOLEAN DEFAULT false,
@@ -671,4 +672,17 @@ WHERE role = 'recovery';
 
 DROP POLICY IF EXISTS "Recovery see recovery customers" ON customers;
 DROP POLICY IF EXISTS "Recovery can update recovery customers" ON customers;
+
+-- ============================================================
+-- MIGRATION 016 — Junior text-only interaction results
+-- ============================================================
+
+ALTER TABLE call_logs DROP CONSTRAINT IF EXISTS call_logs_call_result_check;
+ALTER TABLE call_logs ADD CONSTRAINT call_logs_call_result_check
+  CHECK (call_result IN (
+    'No Answer', 'Left Voicemail', 'Customer Answered',
+    'No Text Reply', 'Simple Reschedule', 'Call Requested', 'Reschedule by Phone',
+    'Callback Requested', 'Rescheduled', 'New Account Created',
+    'Not Interested', 'Wrong Number', 'Do Not Call', 'ISP Complaint', 'Price Approval Needed'
+  ));
 

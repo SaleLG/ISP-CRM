@@ -108,6 +108,22 @@ export const CALL_RESULTS = [
   "Price Approval Needed",
 ] as const;
 
+/** Junior outreach is text-only. Only simple text reschedule stays on Junior Sales. */
+export const JUNIOR_TEXT_RESULTS = [
+  "No Text Reply",
+  "Simple Reschedule",
+  "Call Requested",
+  "Reschedule by Phone",
+  "ISP Complaint",
+  "Price Approval Needed",
+  "Not Interested",
+  "Wrong Number",
+  "Do Not Call",
+] as const;
+
+export type JuniorTextResult = (typeof JUNIOR_TEXT_RESULTS)[number];
+export type CallResult = (typeof CALL_RESULTS)[number];
+
 export const ALERT_TYPES = [
   "None",
   "ISP Complaint Needs Fix",
