@@ -13,6 +13,10 @@ import {
   syncLegacyCustomerFields,
 } from "@/lib/customerFields";
 import { getISPColumns } from "@/actions/ispColumns";
+import {
+  getReimportReopenFields,
+  shouldReinitializeOnReimport,
+} from "@/lib/workflow";
 import type { ISPColumn } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -143,10 +147,16 @@ async function runConfirmImport(formData: FormData) {
 
   const { data: existingCustomers, error: existingError } = await admin
     .from("customers")
-    .select("id, custom_fields")
+    .select(
+      "id, custom_fields, workflow_stage, outcome, assigned_team, transfer_status"
+    )
     .eq("isp_id", ispId);
 
   if (existingError) throw new Error(existingError.message);
+
+  const existingById = new Map(
+    (existingCustomers ?? []).map((customer) => [customer.id, customer])
+  );
 
   const matchLookup = buildMatchLookup(existingCustomers ?? [], matchColumns);
 
@@ -171,6 +181,7 @@ async function runConfirmImport(formData: FormData) {
     raw: Record<string, string | null>;
     id: string;
     payload: Record<string, unknown>;
+    reopen: boolean;
   };
 
   const importRowRecords: ImportRowRecord[] = [];
@@ -207,11 +218,17 @@ async function runConfirmImport(formData: FormData) {
     const existingId = findExistingInMemory(matchLookup, customFields, matchColumns);
 
     if (existingId) {
+      const existing = existingById.get(existingId);
+      const reopen = existing ? shouldReinitializeOnReimport(existing) : false;
       toUpdate.push({
         rowNumber,
         raw,
         id: existingId,
-        payload: customerData,
+        payload: {
+          ...customerData,
+          ...(reopen ? getReimportReopenFields() : {}),
+        },
+        reopen,
       });
       continue;
     }
@@ -252,6 +269,7 @@ async function runConfirmImport(formData: FormData) {
 
   let newCustomers = 0;
   let updatedCustomers = 0;
+  let reopenedCustomers = 0;
   let errorRows = importRowRecords.length;
 
   for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
@@ -347,11 +365,23 @@ async function runConfirmImport(formData: FormData) {
         errorRows++;
       } else {
         updatedCustomers++;
+        if (item.reopen) {
+          reopenedCustomers++;
+          await admin.from("activities").insert({
+            customer_id: item.id,
+            user_id: profile.id,
+            activity_type: "team_transfer",
+            old_value: existingById.get(item.id)?.assigned_team ?? "Finished",
+            new_value: "Junior Sales Team",
+            description:
+              "Re-initialized from ISP import — lead had finished the pipeline, new outreach round",
+          });
+        }
         importRowRecords.push({
           import_id: importRecord.id,
           row_number: item.rowNumber,
           raw_data: item.raw,
-          status: "updated",
+          status: item.reopen ? "reopened" : "updated",
           customer_id: item.id,
         });
       }
@@ -374,6 +404,7 @@ async function runConfirmImport(formData: FormData) {
     })
     .eq("id", importRecord.id);
 
+  revalidatePath("/junior-sales");
   revalidatePath("/customers");
   revalidatePath("/dashboard");
   revalidatePath("/senior-sales");
@@ -384,6 +415,7 @@ async function runConfirmImport(formData: FormData) {
     total_rows: rows.length,
     new_customers: newCustomers,
     updated_customers: updatedCustomers,
+    reopened_customers: reopenedCustomers,
     skipped_rows: 0,
     error_rows: errorRows,
   };

@@ -178,6 +178,7 @@ export interface ImportSummary {
   total_rows: number;
   new_customers: number;
   updated_customers: number;
+  reopened_customers: number;
   skipped_rows: number;
   error_rows: number;
 }

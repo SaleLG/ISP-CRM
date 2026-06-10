@@ -56,6 +56,7 @@ export default function ImportWizard({ isps }: Props) {
     total_rows: number;
     new_customers: number;
     updated_customers: number;
+    reopened_customers: number;
     skipped_rows: number;
     error_rows: number;
   } | null>(null);
@@ -339,6 +340,12 @@ export default function ImportWizard({ isps }: Props) {
               <Chip label={`Total Rows: ${summary.total_rows}`} />
               <Chip label={`New: ${summary.new_customers}`} color="success" />
               <Chip label={`Updated: ${summary.updated_customers}`} color="info" />
+              {summary.reopened_customers > 0 && (
+                <Chip
+                  label={`Re-initialized: ${summary.reopened_customers}`}
+                  color="warning"
+                />
+              )}
               <Chip label={`Skipped: ${summary.skipped_rows}`} />
               <Chip
                 label={`Errors: ${summary.error_rows}`}

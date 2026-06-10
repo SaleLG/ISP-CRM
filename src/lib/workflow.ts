@@ -141,6 +141,42 @@ export function canRecycleToJunior(customer: Customer): boolean {
   return customer.assigned_team === "Recycle Hold";
 }
 
+const TERMINAL_WORKFLOW_STAGES = ["Closed", "New Account Created"] as const;
+
+const TERMINAL_OUTCOMES = [
+  "Not Interested",
+  "Wrong Number",
+  "Do Not Call",
+  "Closed",
+  "New Account Created",
+] as const;
+
+/** Finished leads (closed or solved) that re-appear on import start a fresh junior round. */
+export function shouldReinitializeOnReimport(customer: {
+  workflow_stage?: string | null;
+  outcome?: string | null;
+}): boolean {
+  const stage = customer.workflow_stage ?? "";
+  if ((TERMINAL_WORKFLOW_STAGES as readonly string[]).includes(stage)) return true;
+  const outcome = customer.outcome ?? "";
+  return (TERMINAL_OUTCOMES as readonly string[]).includes(outcome);
+}
+
+export function getReimportReopenFields(): Record<string, unknown> {
+  return {
+    assigned_team: "Junior Sales Team",
+    workflow_stage: "New",
+    call_attempt_number: 0,
+    transfer_status: "None",
+    assigned_user_id: null,
+    outcome: "Pending",
+    alert_type: "None",
+    alert_status: "None",
+    price_approval_status: "Not Requested",
+    follow_up_date: null,
+  };
+}
+
 export function getJuniorTextResultDescription(result: string): string | undefined {
   switch (result) {
     case "No Text Reply":
