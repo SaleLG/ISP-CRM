@@ -71,8 +71,8 @@ export default function CallLogDialog({
       onClose();
       if (result && "redirectTo" in result && result.redirectTo) {
         router.push(result.redirectTo);
-        router.refresh();
       }
+      router.refresh();
     } catch (err) {
       setError(
         err instanceof Error
