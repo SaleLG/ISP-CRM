@@ -537,6 +537,7 @@ export async function updateAlert(
     updates.price_approval_status = priceApprovalStatus;
   }
 
+  
   const { error } = await supabase
     .from("customers")
     .update(updates)

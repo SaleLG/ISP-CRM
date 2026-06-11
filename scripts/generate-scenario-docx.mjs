@@ -71,23 +71,23 @@ const doc = new Document({
       children: [
         heading("ISP Recovery CRM — Example Business Scenario"),
         para(
-          "This document walks through two customer journeys: (A) a callback escalation from Junior Sales to Senior Sales, and (B) a no-response lead moved to the manager's No Reply recycle basket and sent back to Junior Sales after 30 days."
+          "This document walks through two customer journeys: (A) a call-request escalation from Junior Sales text outreach to Senior Sales, and (B) a no-response lead moved to the manager's No Reply recycle basket and sent back to Junior Sales after 30 days."
         ),
         para("Document: ISP Recovery CRM Example Scenario"),
         para(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`),
         para("Application: ISP Recovery CRM"),
 
         heading("Overview — Workflow Pipeline", HeadingLevel.HEADING_2),
-        bullet("Junior Sales Team — first 3 outreach attempts on imported leads"),
+        bullet("Junior Sales Team — first 3 text outreach attempts on imported leads"),
         bullet("Senior Sales Team — callback and reschedule escalations (manager assigns reps)"),
         bullet("No Reply — Recycle — manager-only 30-day hold after 3 no-reply attempts"),
         para(
           "Imported leads start on Junior Sales. Positive responses escalate to Senior Sales. No-reply leads auto-move to the recycle basket."
         ),
 
-        heading("Scenario A — Callback Escalation (Jane Doe)", HeadingLevel.HEADING_2),
+        heading("Scenario A — Call Request Escalation (Jane Doe)", HeadingLevel.HEADING_2),
         para(
-          "Jane Doe is a Comcast customer who answers on the second Junior Sales call and asks for a callback tomorrow at 2pm."
+          "Jane Doe is a Comcast customer who replies to the second Junior Sales text and asks for a phone call tomorrow at 2pm."
         ),
 
         heading("A1 — Import", HeadingLevel.HEADING_3),
@@ -103,14 +103,14 @@ const doc = new Document({
         heading("A2 — Junior Sales: Attempt 1", HeadingLevel.HEADING_3),
         para("Who: Junior Sales agent (Maria)"),
         para("Where: Junior Sales Team → Jane Doe"),
-        numbered('Log Call → "No Answer"'),
+        numbered('Log Text → "No Text Reply"'),
         para("System updates: call_attempt_number = 1, workflow_stage = Attempt 1"),
 
         heading("A3 — Junior Sales: Attempt 2 (Customer Responds)", HeadingLevel.HEADING_3),
-        para("Maria calls again. Jane answers:"),
-        para('"I\'m busy — call me back tomorrow at 2pm."'),
-        numbered('Log Call → "Callback Requested"'),
-        numbered('Notes: "Customer wants callback tomorrow 2pm"'),
+        para("Maria texts again. Jane replies:"),
+        para('"I\'m busy — call me tomorrow at 2pm."'),
+        numbered('Log Text → "Call Requested"'),
+        numbered('Notes: "Customer wants a call tomorrow 2pm"'),
         para("System automatically escalates:"),
         bullet('assigned_team = "Senior Sales Team"'),
         bullet('workflow_stage = "Callback Requested"'),
@@ -204,15 +204,15 @@ const doc = new Document({
 
         heading("B2 — Junior Sales: Attempt 1", HeadingLevel.HEADING_3),
         para("Who: Junior Sales agent (Maria)"),
-        numbered('Log Call → "Left Voicemail"'),
+        numbered('Log Text → "No Text Reply"'),
         para("call_attempt_number = 1, workflow_stage = Attempt 1"),
 
         heading("B3 — Junior Sales: Attempt 2", HeadingLevel.HEADING_3),
-        numbered('Log Call → "No Answer"'),
+        numbered('Log Text → "No Text Reply"'),
         para("call_attempt_number = 2, workflow_stage = Attempt 2"),
 
         heading("B4 — Junior Sales: Attempt 3 (Auto Recycle)", HeadingLevel.HEADING_3),
-        numbered('Log Call → "Left Voicemail"'),
+        numbered('Log Text → "No Text Reply"'),
         para("System automatically moves John to the recycle basket:"),
         bullet("call_attempt_number = 3"),
         bullet('assigned_team = "Recycle Hold"'),
@@ -250,16 +250,22 @@ const doc = new Document({
               ],
             }),
             ...[
-              ["New Account Created", "Customer signs up again — counted on dashboard"],
+              ["New Account Created", "Customer signs up again — lead solved (stage New Account Created)"],
               ["Not Interested", 'workflow_stage = "Closed"'],
-              ["ISP Complaint", "Alert created → management fixes ISP issue"],
+              ["Simple Reschedule", "Customer confirmed new date by text — stays on Junior Sales"],
+              ["ISP Complaint", "Alert created → escalates to Senior Sales for manager assignment"],
+              ["Price Approval Needed", "Alert created → escalates to Senior Sales for manager assignment"],
               [
-                "Callback Requested (Junior Sales)",
+                "Call Requested (Junior Sales)",
                 "Escalates to Senior Sales Team — manager assigns a senior rep",
               ],
               [
-                "Rescheduled (Junior Sales)",
+                "Reschedule by Phone (Junior Sales)",
                 "Escalates to Senior Sales Team — manager assigns a senior rep",
+              ],
+              [
+                "Re-import matched finished lead",
+                "Closed or New Account Created lead in new ISP file → re-initialized to Junior Sales, stage New",
               ],
             ].map(
               ([result, outcome]) =>
@@ -276,8 +282,8 @@ const doc = new Document({
         new Paragraph({ spacing: { after: 200 } }),
         heading("Visual Flow", HeadingLevel.HEADING_2),
 
-        para("Path A — Jane Doe (callback escalation):", { spacing: { after: 80 } }),
-        para("Import → Junior Sales (Attempt 1) → Attempt 2: Callback Requested"),
+        para("Path A — Jane Doe (call request escalation):", { spacing: { after: 80 } }),
+        para("Import → Junior Sales (Text Attempt 1) → Attempt 2: Call Requested"),
         para("        ↓"),
         para("Senior Sales (Senior Review) → Manager assigns James"),
         para("        ↓"),
@@ -285,7 +291,7 @@ const doc = new Document({
 
         new Paragraph({ spacing: { after: 120 } }),
         para("Path B — John Smith (no response → recycle):", { spacing: { after: 80 } }),
-        para("Import → Junior Sales — Attempt 1, 2, 3 (no callback)"),
+        para("Import → Junior Sales — 3 text attempts (No Text Reply)"),
         para("        ↓"),
         para("Auto → No Reply Recycle Hold (30 days)"),
         para("        ↓"),
@@ -302,18 +308,26 @@ const doc = new Document({
           "New imports land on Junior Sales Team with stage New and 0 call attempts."
         ),
         bullet(
-          "Callback Requested or Rescheduled from Junior Sales escalates to Senior Sales automatically."
+          "Junior Sales uses text-only outreach — 3 No Text Reply attempts trigger Recycle Hold."
+        ),
+        bullet(
+          "Call Requested, Reschedule by Phone, ISP Complaint, and Price Approval Needed escalate to Senior Sales."
+        ),
+        bullet(
+          "Simple Reschedule by text stays on Junior Sales — no escalation."
         ),
         bullet(
           "Managers assign Senior Sales reps to escalated leads (manual for now; scheduling may come later)."
         ),
-        bullet("Junior Sales gets 3 tries with no returned call — then auto-move to Recycle Hold for 30 days."),
         bullet("Manager sends recycled leads back to Junior Sales when ready."),
         bullet(
-          "Alerts = things needing management attention (ISP complaints, price approvals)."
+          "Re-importing a finished lead (Closed or New Account Created) starts a fresh Junior Sales round."
         ),
         bullet(
-          "Every call is logged — attempt count and stage update automatically."
+          "Alerts = management tasks (ISP complaints, price approvals). Resolving an alert does not finish the lead — log New Account Created or Closed on customer detail."
+        ),
+        bullet(
+          "Every text/call is logged — attempt count and stage update automatically."
         ),
 
         heading("Who Uses What in the CRM", HeadingLevel.HEADING_2),
@@ -336,7 +350,7 @@ const doc = new Document({
               [
                 "Junior Sales",
                 "Junior Sales Team",
-                "Maria makes Attempts 1–3; Jane escalates on callback; John auto-moves to recycle hold",
+                "Maria logs text attempts 1–3; Jane escalates on Call Requested; John auto-moves to recycle hold",
               ],
               [
                 "Senior Sales",
